@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { isAnnotation } from "../../shared/components.ts";
+import { isAnnotation, isClassShape } from "../../shared/components.ts";
 import { COMPONENTS } from "../catalog.ts";
 import type { DesignFlowEdge, DesignFlowNode, DirectionChoice, EdgeData, NodeData } from "../graph.ts";
 import { DirectionPicker } from "./DirectionPicker.tsx";
@@ -71,6 +71,7 @@ export function Inspector(p: Props) {
   }
 
   if (node) {
+    const isClass = isClassShape(node.data.type);
     return (
       <Card title={COMPONENTS[node.data.type].label} {...card}>
         <label className="field">
@@ -79,18 +80,19 @@ export function Inspector(p: Props) {
             value={node.data.label}
             maxLength={200}
             disabled={readOnly}
-            placeholder="e.g. URL service"
+            placeholder={isClass ? "e.g. ParkingLot" : "e.g. URL service"}
             onChange={(e) => p.onNodeChange(node.id, { label: e.target.value })}
           />
         </label>
         <label className="field">
-          Notes
+          {isClass ? "Fields & methods" : "Notes"}
           <textarea
-            rows={2}
+            rows={isClass ? 5 : 2}
             value={node.data.notes}
             maxLength={500}
             disabled={readOnly}
-            placeholder="e.g. Postgres, 3 read replicas"
+            className={isClass ? "api-input" : undefined}
+            placeholder={isClass ? "- floors: Floor[]\n+ park(vehicle): Ticket" : "e.g. Postgres, 3 read replicas"}
             onChange={(e) => p.onNodeChange(node.id, { notes: e.target.value })}
           />
         </label>

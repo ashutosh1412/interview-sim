@@ -197,10 +197,15 @@ export const FinishRequestSchema = z.object({
   requestId: z.string().min(8).max(64),
 });
 
+export const TRACKS = ["Web & backend", "AI engineering", "AI workflows & agents", "Cloud architecture", "Low-level design"] as const;
+
 export const PublicProblemSchema = z.object({
   id: z.string(),
   title: z.string(),
-  track: z.string(),
+  track: z.enum(TRACKS),
+  /** hld: boxes-and-arrows system design. lld: classes and relationships. */
+  kind: z.enum(["hld", "lld"]),
+  difficulty: z.enum(["Medium", "Hard"]),
   statement: z.string(),
 });
 export type PublicProblem = z.infer<typeof PublicProblemSchema>;

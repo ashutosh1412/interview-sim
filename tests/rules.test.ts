@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { runRules } from "../src/server/interview/rules.ts";
 import { clone, urlDesign } from "./helpers.ts";
 
-const keys = (d: Parameters<typeof runRules>[0], r?: Parameters<typeof runRules>[1], c?: Parameters<typeof runRules>[2]) =>
-  runRules(d, r, c).map((f) => f.key);
-const blocking = (d: Parameters<typeof runRules>[0]) => runRules(d).filter((f) => f.blocking).map((f) => f.key);
+type Design = Parameters<typeof runRules>[0];
+type Ctx = NonNullable<Parameters<typeof runRules>[1]>;
+const keys = (d: Design, requirements?: Ctx["requirements"], contract?: Ctx["contract"]) =>
+  runRules(d, { requirements, contract }).map((f) => f.key);
+const blocking = (d: Design, kind: Ctx["kind"] = "hld") => runRules(d, { kind }).filter((f) => f.blocking).map((f) => f.key);
 
 describe("runRules: blocking gate", () => {
   it("blocks an empty design with every fundamental gap", () => {
@@ -55,6 +57,22 @@ describe("runRules: entities and API", () => {
   it("questions a user id taken from the request body", () => {
     expect(api("POST /v1/urls body: { userId, longUrl }")).toContain("user-id-in-body");
     expect(api("POST /v1/urls body: { longUrl }\nGET /v1/users/{userId}/urls")).not.toContain("user-id-in-body");
+  });
+});
+
+describe("runRules: low-level design", () => {
+  const cls = (id: string) => ({ id, type: "class" as const, label: id, notes: "", parent: "" });
+  const rel = (id: string, from: string, to: string) => ({ id, from, to, mode: "sync" as const, direction: "one_way" as const, label: "has-a" });
+
+  it("asks for enough classes and relationships instead of servers and databases", () => {
+    expect(blocking({ nodes: [cls("a"), cls("b")], edges: [] }, "lld")).toEqual(["too-few-classes", "no-relations"]);
+    expect(blocking({ nodes: [cls("a"), cls("b"), cls("c")], edges: [rel("e1", "a", "b")] }, "lld")).toEqual([]);
+  });
+
+  it("skips HTTP API checks for class design", () => {
+    const d = { nodes: [cls("a"), cls("b"), cls("c")], edges: [rel("e1", "a", "b"), rel("e2", "b", "c")] };
+    const findings = runRules(d, { kind: "lld", contract: { entities: "A, B", api: "A.park(): Ticket" } }).map((f) => f.key);
+    expect(findings).not.toContain("no-endpoints");
   });
 });
 

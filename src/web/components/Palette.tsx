@@ -5,10 +5,13 @@ import { COMPONENTS } from "../catalog.ts";
 export const DRAG_MIME = "application/x-interview-component";
 
 /** What most designs need. Everything else is one click away under "More shapes". */
-const COMMON: ComponentType[] = [
-  "client", "load_balancer", "api_gateway", "service", "worker", "cache",
-  "sql_db", "nosql_db", "queue", "object_storage", "cdn", "group", "note",
-];
+const COMMON: Record<"hld" | "lld", ComponentType[]> = {
+  hld: [
+    "client", "load_balancer", "api_gateway", "service", "worker", "cache",
+    "sql_db", "nosql_db", "queue", "object_storage", "cdn", "group", "note",
+  ],
+  lld: ["class", "interface", "enum", "group", "note", "text"],
+};
 
 function ShapeButton({ type, disabled, onAdd }: { type: ComponentType; disabled: boolean; onAdd: (t: ComponentType) => void }) {
   const { Icon, label, color } = COMPONENTS[type];
@@ -30,7 +33,8 @@ function ShapeButton({ type, disabled, onAdd }: { type: ComponentType; disabled:
   );
 }
 
-export function Palette({ onAdd, disabled }: { onAdd: (type: ComponentType) => void; disabled: boolean }) {
+export function Palette({ kind, onAdd, disabled }: { kind: "hld" | "lld"; onAdd: (type: ComponentType) => void; disabled: boolean }) {
+  const common = COMMON[kind];
   const [query, setQuery] = useState("");
   const q = query.trim().toLowerCase();
   const results = COMPONENT_TYPES.filter((t) => COMPONENTS[t].label.toLowerCase().includes(q) || t.includes(q));
@@ -54,13 +58,13 @@ export function Palette({ onAdd, disabled }: { onAdd: (type: ComponentType) => v
         )
       ) : (
         <>
-          {COMMON.map((t) => (
+          {common.map((t) => (
             <ShapeButton key={t} type={t} disabled={disabled} onAdd={onAdd} />
           ))}
           <details className="palette__more">
             <summary>More shapes</summary>
             {CATEGORIES.map((category) => {
-              const types = COMPONENT_TYPES.filter((t) => COMPONENTS[t].category === category && !COMMON.includes(t));
+              const types = COMPONENT_TYPES.filter((t) => COMPONENTS[t].category === category && !common.includes(t));
               if (!types.length) return null;
               return (
                 <div key={category} className="palette__group">

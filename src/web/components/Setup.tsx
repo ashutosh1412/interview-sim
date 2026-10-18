@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { PublicProblem, Status } from "../../shared/schemas.ts";
+import { TRACKS, type PublicProblem, type Status } from "../../shared/schemas.ts";
 import { api, ApiRequestError } from "../api.ts";
 
 const DURATIONS = [30, 45, 60] as const;
@@ -8,6 +8,7 @@ export function Setup({ onStart }: { onStart: (sessionId: string) => void }) {
   const [problems, setProblems] = useState<PublicProblem[]>([]);
   const [status, setStatus] = useState<Status | null>(null);
   const [problemId, setProblemId] = useState("");
+  const [track, setTrack] = useState<(typeof TRACKS)[number]>(TRACKS[0]);
   const [duration, setDuration] = useState<(typeof DURATIONS)[number]>(45);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,18 +38,51 @@ export function Setup({ onStart }: { onStart: (sessionId: string) => void }) {
   return (
     <main className="setup">
       <h1>System design interview</h1>
-      <p className="muted">Pick a problem and a time limit. The clock starts when you press Start.</p>
+      <p className="muted">Pick a track and a problem. The clock starts when you press Start.</p>
+
+      <div className="tracks" role="tablist" aria-label="Track">
+        {TRACKS.map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={track === t}
+            className={`track${track === t ? " is-on" : ""}`}
+            onClick={() => {
+              setTrack(t);
+              setProblemId(problems.find((p) => p.track === t)?.id ?? "");
+            }}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
 
       <fieldset className="setup__problems">
-        <legend>Problem</legend>
-        {problems.map((p) => (
-          <label key={p.id} className={`problem${problemId === p.id ? " is-on" : ""}`}>
-            <input type="radio" name="problem" checked={problemId === p.id} onChange={() => setProblemId(p.id)} />
-            <span className="problem__title">{p.title}</span>
-            <span className="muted">{p.track}</span>
-          </label>
-        ))}
+        <legend className="sr-only">Problem</legend>
+        {problems
+          .filter((p) => p.track === track)
+          .map((p) => (
+            <label key={p.id} className={`problem${problemId === p.id ? " is-on" : ""}`}>
+              <input type="radio" name="problem" checked={problemId === p.id} onChange={() => setProblemId(p.id)} />
+              <span className="problem__title">{p.title}</span>
+              <span className={`tag tag--${p.difficulty.toLowerCase()}`}>{p.difficulty}</span>
+            </label>
+          ))}
       </fieldset>
+      <button
+        type="button"
+        className="btn btn--ghost btn--small surprise"
+        disabled={!problems.length}
+        onClick={() => {
+          const pick = problems[Math.floor(Math.random() * problems.length)];
+          if (!pick) return;
+          setTrack(pick.track);
+          setProblemId(pick.id);
+        }}
+      >
+        Surprise me
+      </button>
 
       <fieldset className="segmented">
         <legend>Time limit</legend>

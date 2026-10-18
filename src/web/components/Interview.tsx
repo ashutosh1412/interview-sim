@@ -394,7 +394,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
               </div>
               <ol className="steps" aria-label="Interview phase">
                 <li className={inRequirements ? "is-on" : "is-done"}>1 Requirements</li>
-                <li className={session.phase === "api" ? "is-on" : inDesign ? "is-done" : ""}>2 Entities & API</li>
+                <li className={session.phase === "api" ? "is-on" : inDesign ? "is-done" : ""}>{problem.kind === "lld" ? "2 Classes & methods" : "2 Entities & API"}</li>
                 <li className={inDesign ? "is-on" : ""}>3 Design</li>
               </ol>
               <Timer startedAt={session.startedAt} durationMin={session.durationMin} stopped={readOnly} onExpire={() => finish(false)} />
@@ -451,7 +451,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
             )}
 
             <div className="workspace">
-              <Palette onAdd={(t) => addNode(t)} disabled={readOnly} />
+              <Palette kind={problem.kind} onAdd={(t) => addNode(t)} disabled={readOnly} />
               <div className="canvas" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
                 <ReactFlow
                   nodes={nodes}
@@ -515,7 +515,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
 
                   {session.requirements && <RequirementsSummary requirements={session.requirements} clarifications={session.clarifications} />}
 
-                  {session.contract && <ContractSummary contract={session.contract} />}
+                  {session.contract && <ContractSummary contract={session.contract} kind={problem.kind} />}
 
                 </details>
                 <RequirementsPanel
@@ -529,7 +529,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                   onLock={lockRequirements}
                 />
                 {session.phase === "api" && (
-                  <ContractPanel draft={contract} busy={busy === "lock"} readOnly={readOnly} onDraft={setContract} onLock={lockContract} />
+                  <ContractPanel kind={problem.kind} draft={contract} busy={busy === "lock"} readOnly={readOnly} onDraft={setContract} onLock={lockContract} />
                 )}
 
                 {inDesign && (

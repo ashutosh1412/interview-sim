@@ -9,6 +9,7 @@ export const CATEGORIES = [
   "messaging",
   "analytics",
   "operations",
+  "classes",
   "containers",
   "annotations",
 ] as const;
@@ -22,6 +23,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   messaging: "Messaging",
   analytics: "Analytics & ML",
   operations: "Ops & other",
+  classes: "Classes (LLD)",
   containers: "Containers",
   annotations: "Text",
 };
@@ -33,8 +35,9 @@ export const COMPONENT_TYPES = [
   "service", "worker", "serverless", "auth", "notification", "scheduler",
   "cache", "sql_db", "nosql_db", "object_storage", "search", "data_warehouse", "vector_db",
   "queue", "stream", "pubsub",
-  "stream_processor", "ml_model",
+  "stream_processor", "ml_model", "llm",
   "monitoring", "external", "component",
+  "class", "interface", "enum",
   "group", "region", "availability_zone", "vpc",
   "text", "note",
 ] as const;
@@ -68,9 +71,13 @@ export const COMPONENT_META: Record<ComponentType, { label: string; category: Ca
   pubsub: { label: "Pub/sub topic", category: "messaging" },
   stream_processor: { label: "Stream processor", category: "analytics" },
   ml_model: { label: "ML model", category: "analytics" },
+  llm: { label: "LLM", category: "analytics" },
   monitoring: { label: "Monitoring", category: "operations" },
   external: { label: "External API", category: "operations" },
   component: { label: "Component", category: "operations" },
+  class: { label: "Class", category: "classes" },
+  interface: { label: "Interface", category: "classes" },
+  enum: { label: "Enum", category: "classes" },
   group: { label: "Group / boundary", category: "containers" },
   region: { label: "Region", category: "containers" },
   availability_zone: { label: "Availability zone", category: "containers" },
@@ -82,5 +89,6 @@ export const COMPONENT_META: Record<ComponentType, { label: string; category: Ca
 export const categoryOf = (type: ComponentType): Category => COMPONENT_META[type].category;
 export const isContainer = (type: ComponentType) => categoryOf(type) === "containers";
 export const isAnnotation = (type: ComponentType) => categoryOf(type) === "annotations";
+export const isClassShape = (type: ComponentType) => categoryOf(type) === "classes";
 /** Real system components: not boxes around them and not free text. */
 export const isComponent = (type: ComponentType) => !isContainer(type) && !isAnnotation(type);

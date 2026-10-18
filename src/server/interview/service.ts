@@ -57,8 +57,8 @@ function applyAnswers(threads: Thread[], answers: Answer[]): void {
  * Adds new rule findings and auto-resolves rule threads the design no longer triggers.
  * Returns how many blocking findings are active.
  */
-function syncRuleThreads(session: Session, design: Design, round: number): number {
-  const findings = runRules(design, session.requirements, session.contract);
+function syncRuleThreads(session: Session, problem: Problem, design: Design, round: number): number {
+  const findings = runRules(design, { kind: problem.kind, requirements: session.requirements, contract: session.contract });
   const activeKeys = new Set(findings.map((f) => `r-${f.key}`));
   const threads = session.threads;
 
@@ -218,7 +218,7 @@ export function createInterviewService(deps: {
     const prevDesign = session.rounds.at(-1)?.design;
     const diff = diffDesigns(prevDesign, req.design);
     applyAnswers(session.threads, req.answers);
-    const blocking = syncRuleThreads(session, req.design, round);
+    const blocking = syncRuleThreads(session, problem, req.design, round);
 
     const designChanged = prevDesign === undefined || !isEmptyDiff(diff);
     const hasAnswered = session.threads.some((t) => t.status === "answered");

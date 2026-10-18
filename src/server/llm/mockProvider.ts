@@ -37,6 +37,10 @@ const QUESTION_BANK: Partial<Record<ComponentType, string>> = {
   notification: "How do you avoid sending duplicate notifications when a send is retried?",
   serverless: "What happens to latency on a cold start, and is that acceptable here?",
   dns: "How do you route users to the nearest healthy region?",
+  llm: "What happens to latency and cost if this model is slow or unavailable? Is there a fallback?",
+  class: "What is this class's single responsibility, and which methods does it expose?",
+  interface: "Which classes implement this, and how does it keep the design open for extension?",
+  enum: "Would an enum still work if a new type needs its own behaviour, or should that be polymorphism?",
 };
 
 const SHORT_ANSWER_CHARS = 80;

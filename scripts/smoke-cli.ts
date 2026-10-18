@@ -38,7 +38,7 @@ const requirements: Requirements = {
   estimates: "About 100 redirects per second",
 };
 
-const blocking = runRules(design, requirements).filter((f) => f.blocking);
+const blocking = runRules(design, { requirements }).filter((f) => f.blocking);
 if (blocking.length) throw new Error(`Design unexpectedly blocked: ${blocking.map((f) => f.key).join(", ")}`);
 
 const llm = createLlmClient({

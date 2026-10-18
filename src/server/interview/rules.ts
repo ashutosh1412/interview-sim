@@ -3,7 +3,7 @@
 //
 // Blocking findings mean "this is not yet a design an interviewer would engage with":
 // while any exist, no model is called and the submit counts as a strike.
-import { isComponent, type ComponentType } from "../../shared/components.ts";
+import { isClassShape, isComponent, type ComponentType } from "../../shared/components.ts";
 import type { AnnotationTarget, Contract, Design, LlmAnnotation, Requirements } from "../../shared/schemas.ts";
 
 export interface RuleFinding extends LlmAnnotation {
@@ -14,13 +14,21 @@ export interface RuleFinding extends LlmAnnotation {
 
 const CLIENTS: ReadonlySet<ComponentType> = new Set(["client", "mobile_client", "user"]);
 const COMPUTE: ReadonlySet<ComponentType> = new Set([
-  "service", "worker", "serverless", "auth", "notification", "scheduler", "stream_processor", "ml_model",
+  "service", "worker", "serverless", "auth", "notification", "scheduler", "stream_processor", "ml_model", "llm",
 ]);
 const STORES: ReadonlySet<ComponentType> = new Set(["sql_db", "nosql_db", "object_storage", "data_warehouse", "vector_db"]);
 const DATABASES: ReadonlySet<ComponentType> = new Set(["sql_db", "nosql_db", "vector_db"]);
 const ENTRY: ReadonlySet<ComponentType> = new Set(["load_balancer", "api_gateway"]);
 const REDUNDANCY_HINT = /replica|replicat|shard|partition|cluster|multi-?az|standby|failover/i;
 export const MIN_COMPONENTS = 4;
+export const MIN_CLASSES = 3;
+
+export interface RuleContext {
+  /** hld: system design (the default). lld: classes and relationships. */
+  kind?: "hld" | "lld";
+  requirements?: Requirements | null;
+  contract?: Contract | null;
+}
 
 const nodeTarget = (id: string): AnnotationTarget => ({ kind: "node", id });
 const GLOBAL: AnnotationTarget = { kind: "global", id: "" };
@@ -57,6 +65,22 @@ function reachable(adj: Map<string, string[]>, starts: string[]): Set<string> {
     }
   }
   return seen;
+}
+
+/** For class design the bar is different: enough classes, and relationships between them. */
+function lldBlockingFindings(design: Design): RuleFinding[] {
+  const classes = design.nodes.filter((n) => isClassShape(n.type));
+  const ids = new Set(classes.map((n) => n.id));
+  const out: RuleFinding[] = [];
+  const block = (key: string, text: string) =>
+    out.push({ key, blocking: true, target: GLOBAL, type: "missing", severity: "high", text });
+  if (classes.length < MIN_CLASSES) {
+    block("too-few-classes", `Sketch the main classes (at least ${MIN_CLASSES}) with their key fields and methods before we go deeper.`);
+  }
+  if (classes.length >= 2 && !design.edges.some((e) => ids.has(e.from) && ids.has(e.to))) {
+    block("no-relations", "How do these classes relate? Connect them and label each link (has-a, is-a, uses).");
+  }
+  return out;
 }
 
 function blockingFindings(design: Design): RuleFinding[] {
@@ -136,8 +160,14 @@ function contractFindings(contract: Contract | null | undefined): RuleFinding[] 
   return out;
 }
 
-export function runRules(design: Design, requirements?: Requirements | null, contract?: Contract | null): RuleFinding[] {
-  const findings = [...blockingFindings(design), ...requirementFindings(requirements), ...contractFindings(contract)];
+export function runRules(design: Design, { kind = "hld", requirements, contract }: RuleContext = {}): RuleFinding[] {
+  const lld = kind === "lld";
+  const findings = [
+    ...(lld ? lldBlockingFindings(design) : blockingFindings(design)),
+    ...requirementFindings(requirements),
+    // HTTP endpoint checks only make sense for system design.
+    ...(lld ? [] : contractFindings(contract)),
+  ];
   const nodeById = new Map(design.nodes.map((n) => [n.id, n]));
   const connected = new Set(design.edges.flatMap((e) => [e.from, e.to]));
   // A node inside a container that has connections is not stranded.

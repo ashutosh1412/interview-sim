@@ -1,6 +1,8 @@
 # Interview Sim
 
-Practice system design interviews on a drag-and-drop canvas, in two phases like a real interview:
+Practice the system design and low-level design problems most commonly asked in tier-1 interview loops: 30 curated problems across five tracks (Web & backend, AI engineering, AI workflows & agents, Cloud architecture, Low-level design), each with a hidden rubric the interviewer grades against (`src/server/interview/problems.ts`). LLD problems use class, interface and enum shapes and an object-oriented interviewer.
+
+Practice system design interviews on a drag-and-drop canvas, in three steps like a real interview:
 
 1. **Requirements**: ask the interviewer clarifying questions, then lock in a short, prioritised feature list and quantified non-functional requirements. Estimates are optional, as in real interviews: give only the numbers that change your design.
 2. **Core entities & API**: list the nouns your system stores and the API clients call, before drawing anything.
