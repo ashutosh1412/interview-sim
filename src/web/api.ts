@@ -1,5 +1,6 @@
 import {
   ApiErrorSchema,
+  type Contract,
   type Design,
   type Requirements,
   type PublicProblem,
@@ -55,6 +56,8 @@ export const api = {
     post<Session>(`/sessions/${encodeURIComponent(id)}/clarify`, { question, requestId }),
   lockRequirements: (id: string, requirements: Requirements) =>
     post<Session>(`/sessions/${encodeURIComponent(id)}/requirements`, requirements),
+  lockContract: (id: string, contract: Contract) =>
+    post<Session>(`/sessions/${encodeURIComponent(id)}/contract`, contract),
   submitRound: (id: string, body: SubmitRoundRequest) =>
     post<Session>(`/sessions/${encodeURIComponent(id)}/rounds`, body),
   finish: (id: string, design: Design, requestId: string) =>

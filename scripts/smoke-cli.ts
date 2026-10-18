@@ -74,7 +74,7 @@ if (!process.argv.includes("--clarify")) await timed("review_round: weak but com
   llm.call({
     task: "review_round", system,
     prompt: reviewPrompt(
-      { design, diff: diffDesigns(undefined, design), threads: [], requirements, round: 1, elapsedMin: 12, durationMin: 45 },
+      { design, diff: diffDesigns(undefined, design), threads: [], requirements, contract: null, round: 1, elapsedMin: 12, durationMin: 45 },
       5,
     ),
     schema: ReviewResultSchema, context, sessionTokensUsed: 0,

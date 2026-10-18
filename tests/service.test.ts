@@ -27,12 +27,14 @@ function setup(opts: { now?: () => number; provider?: LlmProvider } = {}) {
 
 let n = 0;
 const rid = () => `request-${++n}`;
-const REQS = { functional: "shorten, redirect", nonFunctional: "low latency", estimates: "4k reads/s" };
+const REQS = { functional: "shorten, redirect", nonFunctional: "p99 < 50 ms", estimates: "4k reads/s" };
+const CONTRACT = { entities: "User, ShortUrl", api: "POST /v1/urls\nGET /{code}" };
 
 /** Starts a session and locks requirements, ready for design submits. */
 function ready(service: ReturnType<typeof setup>["service"], durationMin = 45) {
   const s = service.start("url-shortener", durationMin);
   service.lockRequirements(s.id, REQS);
+  service.lockContract(s.id, CONTRACT);
   return s;
 }
 
@@ -63,7 +65,20 @@ describe("interview service", () => {
     expect(tasks).toEqual(["clarify"]);
     expect(after.clarifications[0]?.answer).toMatch(/100M/);
     expect(after.phase).toBe("requirements");
-    expect(service.lockRequirements(s.id, REQS).phase).toBe("design");
+    expect(service.lockRequirements(s.id, REQS).phase).toBe("api");
+    expect(service.lockContract(s.id, CONTRACT).phase).toBe("design");
+  });
+
+  it("enforces the order: requirements, then API, then design", async () => {
+    const { service } = setup();
+    const s = service.start("url-shortener", 45);
+    expect(() => service.lockContract(s.id, CONTRACT)).toThrow(/requirements first/);
+    service.lockRequirements(s.id, REQS);
+    await expect(service.submitRound(s.id, { design: urlDesign, answers: [], requestId: rid() })).rejects.toThrow(
+      /core entities and API/,
+    );
+    service.lockContract(s.id, CONTRACT);
+    expect(() => service.lockContract(s.id, CONTRACT)).toThrow(/already locked/);
   });
 
   it("makes no model call for a non-reviewable design and counts a strike", async () => {

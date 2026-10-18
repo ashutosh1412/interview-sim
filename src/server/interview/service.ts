@@ -4,6 +4,7 @@ import {
   ClarifyResultSchema,
   ReviewResultSchema,
   type Answer,
+  type Contract,
   type Design,
   type LlmAnnotation,
   type Requirements,
@@ -33,6 +34,7 @@ export interface InterviewService {
   get(id: string): Session;
   clarify(id: string, question: string, requestId: string): Promise<Session>;
   lockRequirements(id: string, requirements: Requirements): Session;
+  lockContract(id: string, contract: Contract): Session;
   submitRound(id: string, req: SubmitRoundRequest): Promise<Session>;
   finish(id: string, design: Design, requestId: string): Promise<Session>;
 }
@@ -56,7 +58,7 @@ function applyAnswers(threads: Thread[], answers: Answer[]): void {
  * Returns how many blocking findings are active.
  */
 function syncRuleThreads(session: Session, design: Design, round: number): number {
-  const findings = runRules(design, session.requirements);
+  const findings = runRules(design, session.requirements, session.contract);
   const activeKeys = new Set(findings.map((f) => `r-${f.key}`));
   const threads = session.threads;
 
@@ -207,8 +209,9 @@ export function createInterviewService(deps: {
   async function doSubmit(id: string, req: SubmitRoundRequest): Promise<Session> {
     const { session, problem } = load(id);
     assertActive(session);
-    if (session.phase === "requirements") {
-      throw new AppError("bad_request", "Lock in your requirements before submitting a design.");
+    if (session.phase !== "design") {
+      const step = session.phase === "requirements" ? "your requirements" : "your core entities and API";
+      throw new AppError("bad_request", `Lock in ${step} before submitting a design.`);
     }
 
     const round = session.rounds.length + 1;
@@ -237,7 +240,8 @@ export function createInterviewService(deps: {
 
     if (task !== "none") {
       const input = {
-        design: req.design, diff, threads: session.threads, requirements: session.requirements, round,
+        design: req.design, diff, threads: session.threads, requirements: session.requirements,
+        contract: session.contract, round,
         elapsedMin: minutesSince(session.startedAt, now()), durationMin: session.durationMin,
       };
       const result = await llm.call({
@@ -265,7 +269,8 @@ export function createInterviewService(deps: {
       system: systemPrompt(problem),
       prompt: assessmentPrompt(
         {
-          design, threads: session.threads, requirements: session.requirements, round: session.rounds.length,
+          design, threads: session.threads, requirements: session.requirements, contract: session.contract,
+          round: session.rounds.length,
           elapsedMin: minutesSince(session.startedAt, now()), durationMin: session.durationMin,
         },
         { roundsUsed: session.rounds.length, clarifications: session.clarifications, strikes: session.strikes },
@@ -287,7 +292,7 @@ export function createInterviewService(deps: {
       if (!findProblem(problemId)) throw new AppError("bad_request", "Unknown problem");
       const session: Session = {
         id: randomUUID(), problemId, durationMin, startedAt: new Date(now()).toISOString(),
-        finishedAt: null, phase: "requirements", clarifications: [], requirements: null, strikes: 0,
+        finishedAt: null, phase: "requirements", clarifications: [], requirements: null, contract: null, strikes: 0,
         rounds: [], threads: [], assessment: null,
         usage: { calls: 0, inputTokens: 0, outputTokens: 0 },
       };
@@ -301,6 +306,17 @@ export function createInterviewService(deps: {
       assertActive(session);
       if (session.phase !== "requirements") throw new AppError("bad_request", "Requirements are already locked");
       session.requirements = requirements;
+      session.phase = "api";
+      store.save(session);
+      return session;
+    },
+    lockContract(id, contract) {
+      const { session } = load(id);
+      assertActive(session);
+      if (session.phase !== "api") {
+        throw new AppError("bad_request", session.phase === "requirements" ? "Lock in your requirements first" : "The API is already locked");
+      }
+      session.contract = contract;
       session.phase = "design";
       store.save(session);
       return session;

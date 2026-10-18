@@ -110,6 +110,13 @@ export const RequirementsSchema = z.object({
 });
 export type Requirements = z.infer<typeof RequirementsSchema>;
 
+/** Step 2 of a real interview: the nouns of the system and the API contract, before boxes and arrows. */
+export const ContractSchema = z.object({
+  entities: z.string().trim().min(1, "List the core entities").max(1000),
+  api: z.string().trim().min(1, "Sketch at least one API endpoint").max(3000),
+});
+export type Contract = z.infer<typeof ContractSchema>;
+
 export const ClarificationSchema = z.object({ question: z.string(), answer: z.string(), at: z.string() });
 export type Clarification = z.infer<typeof ClarificationSchema>;
 
@@ -144,9 +151,10 @@ export const SessionSchema = z.object({
   startedAt: z.string(),
   finishedAt: z.string().nullable(),
   // Defaults keep sessions saved by older versions loadable.
-  phase: z.enum(["requirements", "design"]).default("requirements"),
+  phase: z.enum(["requirements", "api", "design"]).default("requirements"),
   clarifications: z.array(ClarificationSchema).default([]),
   requirements: RequirementsSchema.nullable().default(null),
+  contract: ContractSchema.nullable().default(null),
   /** Submits rejected as not reviewable (no end-to-end design). Real interviewers notice. */
   strikes: z.number().int().default(0),
   rounds: z.array(

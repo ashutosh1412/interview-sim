@@ -1,7 +1,7 @@
 // Prompt text lives here and only here. The system prompt depends only on the problem,
 // so it is byte-identical for every call in a session (cache-friendly); everything that
 // changes per call goes in the user prompt.
-import type { Clarification, Design, Requirements, Thread } from "../../shared/schemas.ts";
+import type { Clarification, Contract, Design, Requirements, Thread } from "../../shared/schemas.ts";
 import { compactDesign, compactDiff, type DesignDiff } from "./compact.ts";
 import type { Problem } from "./problems.ts";
 
@@ -22,7 +22,7 @@ During requirements clarification, answer what the candidate explicitly asks, us
 How to review a design:
 - First judge whether it could serve the core use case end to end at the stated scale. If it clearly could not (a missing core component, a broken request path, or a design that ignores the candidate's own requirements), return ONE high-severity global "issue" naming the fundamental gap, and no component-level questions.
 - Otherwise ask about the most important gaps first. Prefer one sharp question over several vague ones.
-- Check the design against the candidate's stated requirements and estimates; call out contradictions and arithmetic mistakes.
+- Check the design against the candidate's stated requirements, core entities and API; call out contradictions, an API that cannot serve a functional requirement, and arithmetic mistakes. Upfront estimates are optional: only ask for numbers where they would change a design decision.
 - Attach each annotation to the exact node or edge id it concerns; use kind "global" with id "" only for design-wide points. Edges are directed: "a->b" is one-way, "a<->b" is two-way.
 - "in nX" means the node sits inside container nX (group/service boundary, region, availability zone or VPC). A connection to a container means a connection to what is inside it. "Candidate notes on canvas" are the candidate's own written explanations; take them into account.
 - Use type "issue" for a concrete bottleneck or failure the candidate must fix in the design, "missing" for an absent capability, "question" to probe their reasoning, "praise" only for a genuinely strong, non-obvious choice.
@@ -55,6 +55,13 @@ Non-functional: ${r.nonFunctional}
 Estimates: ${r.estimates || "(none given)"}`;
 }
 
+function contractBlock(c: Contract | null): string {
+  if (!c) return "(candidate has not stated entities or an API)";
+  return `Core entities: ${c.entities}
+API:
+${c.api}`;
+}
+
 function clarificationsBlock(c: Clarification[]): string {
   return c.length ? c.map((x) => `Q: ${x.question}\nA: ${x.answer}`).join("\n") : "(none)";
 }
@@ -64,6 +71,7 @@ interface PromptInput {
   diff: DesignDiff;
   threads: Thread[];
   requirements: Requirements | null;
+  contract: Contract | null;
   round: number;
   elapsedMin: number;
   durationMin: number;
@@ -86,6 +94,9 @@ export function reviewPrompt(i: PromptInput, maxNew: number): string {
 Candidate's stated requirements:
 ${requirementsBlock(i.requirements)}
 
+Candidate's core entities and API:
+${contractBlock(i.contract)}
+
 Current design:
 ${compactDesign(i.design)}
 
@@ -103,6 +114,9 @@ export function gradePrompt(i: PromptInput): string {
 
 Candidate's stated requirements:
 ${requirementsBlock(i.requirements)}
+
+Candidate's core entities and API:
+${contractBlock(i.contract)}
 
 Current design:
 ${compactDesign(i.design)}
@@ -126,6 +140,9 @@ ${clarificationsBlock(extra.clarifications)}
 Candidate's stated requirements:
 ${requirementsBlock(i.requirements)}
 
+Candidate's core entities and API:
+${contractBlock(i.contract)}
+
 Final design:
 ${compactDesign(i.design)}
 
@@ -134,5 +151,5 @@ ${all}
 
 Times the candidate submitted a design that could not serve a request end to end: ${extra.strikes}
 
-Task: write the final assessment. Score each dimension 1-5 (3 = meets the bar for a mid-level engineer). Requirements covers clarifying questions, stated requirements and estimates. Be strict: an incomplete design or vague answers cannot score above 2. Give an overall verdict, a short honest summary, and list the most important things the candidate missed compared to a strong answer.`;
+Task: write the final assessment. Score each dimension 1-5 (3 = meets the bar for a mid-level engineer). Requirements covers clarifying questions, a short prioritised feature list, quantified non-functional requirements, and the core entities and API (estimates only matter where they changed a decision). Be strict: an incomplete design or vague answers cannot score above 2. Give an overall verdict, a short honest summary, and list the most important things the candidate missed compared to a strong answer.`;
 }

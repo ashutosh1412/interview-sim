@@ -1,6 +1,6 @@
 // Per-browser autosave of the canvas and answer drafts. Storage can be unavailable
 // (private mode, quota), so every access is guarded and failure just means no autosave.
-import type { Requirements } from "../shared/schemas.ts";
+import type { Contract, Requirements } from "../shared/schemas.ts";
 import type { DesignFlowEdge, DesignFlowNode } from "./graph.ts";
 
 export interface LocalDraft {
@@ -8,6 +8,7 @@ export interface LocalDraft {
   edges: DesignFlowEdge[];
   answers: Record<string, string>;
   requirements?: Requirements;
+  contract?: Contract;
 }
 
 const key = (sessionId: string) => `interview-sim:draft:${sessionId}`;
@@ -18,7 +19,7 @@ export function loadDraft(sessionId: string): LocalDraft | undefined {
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as Partial<LocalDraft>;
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return undefined;
-    return { nodes: parsed.nodes, edges: parsed.edges, answers: parsed.answers ?? {}, requirements: parsed.requirements };
+    return { nodes: parsed.nodes, edges: parsed.edges, answers: parsed.answers ?? {}, requirements: parsed.requirements, contract: parsed.contract };
   } catch {
     return undefined;
   }

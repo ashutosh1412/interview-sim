@@ -2,8 +2,9 @@
 
 Practice system design interviews on a drag-and-drop canvas, in two phases like a real interview:
 
-1. **Requirements**: ask the interviewer clarifying questions, then lock in functional and non-functional requirements and estimates.
-2. **Design**: draw on a draw.io-style canvas: 30 component shapes in a searchable, grouped palette; containers (group/service boundary, region, AZ, VPC) that you drop shapes into; free text and sticky notes that the interviewer reads; double-click any shape or connection to edit it in place; one-way or two-way connections. Like draw.io, selecting shapes or connections opens a **Format** panel (fill, line colour, dashed/dotted borders, text size, bold/italic; for connections: curved/straight/elbow path, dash, width, colour) and **Arrange** tools (resize, bring to front/send to back, duplicate, lock, align). The canvas has undo/redo, copy/paste/duplicate (Cmd/Ctrl+Z, Shift+Z, C, V, D, A), Shift+drag multi-select, snap to grid, a minimap and PNG export. Formatting is visual only and is never sent to the interviewer. Submit, and the interviewer pins numbered questions on your components and connections. Answer them or fix the design, resubmit, and repeat until time runs out, then get a final assessment.
+1. **Requirements**: ask the interviewer clarifying questions, then lock in a short, prioritised feature list and quantified non-functional requirements. Estimates are optional, as in real interviews: give only the numbers that change your design.
+2. **Core entities & API**: list the nouns your system stores and the API clients call, before drawing anything.
+3. **Design**: draw on a draw.io-style canvas: 30 component shapes in a searchable, grouped palette; containers (group/service boundary, region, AZ, VPC) that you drop shapes into; free text and sticky notes that the interviewer reads; double-click any shape or connection to edit it in place; one-way or two-way connections. Like draw.io, selecting shapes or connections opens a **Format** panel (fill, line colour, dashed/dotted borders, text size, bold/italic; for connections: curved/straight/elbow path, dash, width, colour) and **Arrange** tools (resize, bring to front/send to back, duplicate, lock, align). The canvas has undo/redo, copy/paste/duplicate (Cmd/Ctrl+Z, Shift+Z, C, V, D, A), Shift+drag multi-select, snap to grid, a minimap and PNG export. Formatting is visual only and is never sent to the interviewer. Submit, and the interviewer pins numbered questions on your components and connections. Answer them or fix the design, resubmit, and repeat until time runs out, then get a final assessment.
 
 The interviewer is strict. A design that can't serve a request end to end (no client, no compute, no data store, no entry point, or arrows that never reach the data) is rejected without a model call and counts as a strike. After 3 strikes you're told a real interviewer would likely have ended the session, and the final assessment takes strikes into account.
 
@@ -42,7 +43,7 @@ npm run dev             # web on http://localhost:5173, API on :8787
 Change the tiers or models in that file; no code changes needed.
 
 ## How tokens are saved
-- **Free rule checks** (`src/server/interview/rules.ts`) catch structural issues (unconnected components, a single DB, the client hitting the DB directly, no entry point). They resolve themselves when you fix the design.
+- **Free rule checks** (`src/server/interview/rules.ts`) catch structural issues (unconnected components, a single DB, the client hitting the DB directly, no entry point) and requirement/API issues (unquantified non-functional requirements, more than 5 features, no concrete endpoints, a user id taken from the request body). They resolve themselves when you fix the design.
 - **No call when nothing changed**, and no call for designs with fewer than 2 components.
 - **Compact design text**: positions and styles never leave the browser.
 - **Only the change since the last review** plus open threads is sent each round, not the whole history.

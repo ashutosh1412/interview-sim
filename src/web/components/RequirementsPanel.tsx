@@ -102,12 +102,12 @@ export function RequirementsPanel({ clarifications, draft, locked, busy, readOnl
           maxLength={2000}
           value={draft.nonFunctional}
           disabled={readOnly}
-          placeholder="e.g. 99.99% available; redirect p99 < 50ms; read-heavy"
+          placeholder="e.g. 99.99% available; redirect p99 < 50 ms; 100:1 read-heavy"
           onChange={(e) => onDraft({ ...draft, nonFunctional: e.target.value })}
         />
       </label>
       <label className="field">
-        Back-of-envelope estimates
+        Estimates <span className="muted">(optional: only the numbers that change your design)</span>
         <textarea
           rows={3}
           maxLength={2000}
@@ -119,10 +119,10 @@ export function RequirementsPanel({ clarifications, draft, locked, busy, readOnl
       </label>
       {!readOnly && (
         <button type="button" className="btn btn--primary" disabled={!ready || busy} onClick={onLock}>
-          Lock requirements and start designing
+          Lock requirements and continue
         </button>
       )}
-      {!ready && <p className="hint">Functional and non-functional requirements are required. Skipping estimates will be noted.</p>}
+      {!ready && <p className="hint">Functional and non-functional requirements are required. Keep features to the top 3 and give non-functional targets real numbers (e.g. p99 &lt; 200 ms).</p>}
     </section>
   );
 }

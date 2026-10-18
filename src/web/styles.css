@@ -504,3 +504,7 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 .canvas-toolbar__sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
 .minimap { border: 1px solid var(--border); border-radius: 6px; }
 .dnode .resize-line, .container .resize-line { border-color: var(--primary); }
+
+/* ---------- entities & API ---------- */
+.api-input, .api-pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+.api-pre { margin: 0; white-space: pre-wrap; }

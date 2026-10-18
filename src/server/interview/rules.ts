@@ -4,7 +4,7 @@
 // Blocking findings mean "this is not yet a design an interviewer would engage with":
 // while any exist, no model is called and the submit counts as a strike.
 import { isComponent, type ComponentType } from "../../shared/components.ts";
-import type { AnnotationTarget, Design, LlmAnnotation, Requirements } from "../../shared/schemas.ts";
+import type { AnnotationTarget, Contract, Design, LlmAnnotation, Requirements } from "../../shared/schemas.ts";
 
 export interface RuleFinding extends LlmAnnotation {
   /** Stable key: the same problem on the same element always maps to the same thread. */
@@ -88,14 +88,56 @@ function blockingFindings(design: Design): RuleFinding[] {
   return out;
 }
 
-export function runRules(design: Design, requirements?: Requirements | null): RuleFinding[] {
-  const findings = blockingFindings(design);
-  if (requirements && !requirements.estimates.trim()) {
-    findings.push({
-      key: "no-estimates", blocking: false, target: GLOBAL, type: "missing", severity: "medium",
-      text: "You skipped capacity estimates. Roughly what read/write QPS and storage are you designing for? Answer here.",
+/** Real interviews reward a short, prioritised feature list; long lists hurt. */
+export const MAX_FUNCTIONAL = 5;
+const NUMBER = /\d/;
+const HTTP_ENDPOINT = /\b(GET|POST|PUT|PATCH|DELETE)\s+\/|\b(rpc|grpc|websocket|ws|sse)\b/i;
+// A request body (a line with "body" or a "{" that is not a "/{param}" path segment)
+// that carries the caller's own user id.
+const USER_ID_IN_BODY = /(\bbody\b|(^|[^/])\{)[^\n]*\buser_?id\b/im;
+
+/** Splits a free-text list into items on new lines, bullets and semicolons. */
+function listItems(text: string): string[] {
+  return text
+    .split(/\n|;/)
+    .map((t) => t.replace(/^\s*([-*•]|\d+[.)])\s*/, "").trim())
+    .filter(Boolean);
+}
+
+function requirementFindings(requirements: Requirements | null | undefined): RuleFinding[] {
+  if (!requirements) return [];
+  const out: RuleFinding[] = [];
+  const note = (key: string, text: string) =>
+    out.push({ key, blocking: false, target: GLOBAL, type: "missing", severity: "medium", text });
+  if (!NUMBER.test(requirements.nonFunctional)) {
+    note("vague-nfr", "Your non-functional requirements aren't quantified. \"Low latency\" says little; \"p99 redirect < 50 ms\" does. What are the actual targets?");
+  }
+  if (listItems(requirements.functional).length > MAX_FUNCTIONAL) {
+    note("too-many-features", `That's more than ${MAX_FUNCTIONAL} functional requirements. Which 3 are core for this interview, and which are out of scope?`);
+  }
+  return out;
+}
+
+function contractFindings(contract: Contract | null | undefined): RuleFinding[] {
+  if (!contract) return [];
+  const out: RuleFinding[] = [];
+  if (!HTTP_ENDPOINT.test(contract.api)) {
+    out.push({
+      key: "no-endpoints", blocking: false, target: GLOBAL, type: "missing", severity: "medium",
+      text: "Your API doesn't list concrete endpoints. What exactly do clients call, e.g. POST /v1/urls with what body?",
     });
   }
+  if (USER_ID_IN_BODY.test(contract.api)) {
+    out.push({
+      key: "user-id-in-body", blocking: false, target: GLOBAL, type: "question", severity: "medium",
+      text: "Your API takes the user id in the request body. Couldn't a caller act as someone else? Where should the current user's identity come from?",
+    });
+  }
+  return out;
+}
+
+export function runRules(design: Design, requirements?: Requirements | null, contract?: Contract | null): RuleFinding[] {
+  const findings = [...blockingFindings(design), ...requirementFindings(requirements), ...contractFindings(contract)];
   const nodeById = new Map(design.nodes.map((n) => [n.id, n]));
   const connected = new Set(design.edges.flatMap((e) => [e.from, e.to]));
   // A node inside a container that has connections is not stranded.

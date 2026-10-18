@@ -55,6 +55,7 @@ import { DesignNode } from "./DesignNode.tsx";
 import { FormatPanel } from "./FormatPanel.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { DRAG_MIME, Palette } from "./Palette.tsx";
+import { ContractPanel, ContractSummary, EMPTY_CONTRACT, type ContractDraft } from "./ContractPanel.tsx";
 import { EMPTY_REQUIREMENTS, RequirementsPanel, type RequirementsDraft } from "./RequirementsPanel.tsx";
 import { ThreadPanel } from "./ThreadPanel.tsx";
 import { Timer } from "./Timer.tsx";
@@ -117,6 +118,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
   const [edges, setEdges, onEdgesChange] = useEdgesState<DesignFlowEdge>(draft.edges);
   const [answers, setAnswers] = useState<Record<string, string>>(draft.answers);
   const [requirements, setRequirements] = useState<RequirementsDraft>(draft.requirements ?? EMPTY_REQUIREMENTS);
+  const [contract, setContract] = useState<ContractDraft>(draft.contract ?? EMPTY_CONTRACT);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
   const [busy, setBusy] = useState<Pending["kind"] | null>(null);
@@ -130,11 +132,12 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
 
   const readOnly = session.finishedAt !== null;
   const inRequirements = session.phase === "requirements";
+  const inDesign = session.phase === "design";
 
   useEffect(() => {
-    const id = window.setTimeout(() => saveDraft(session.id, { nodes, edges, answers, requirements }), 400);
+    const id = window.setTimeout(() => saveDraft(session.id, { nodes, edges, answers, requirements, contract }), 400);
     return () => window.clearTimeout(id);
-  }, [session.id, nodes, edges, answers, requirements]);
+  }, [session.id, nodes, edges, answers, requirements, contract]);
 
   const addNode = useCallback(
     (type: ComponentType, position?: XYPosition) => {
@@ -360,6 +363,11 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
     void run({ kind: "lock", run: () => api.lockRequirements(session.id, body) });
   };
 
+  const lockContract = () => {
+    const body = { ...contract };
+    void run({ kind: "lock", run: () => api.lockContract(session.id, body) });
+  };
+
   const threadsContext: ThreadsContextValue = useMemo(() => {
     const byTarget = new Map<string, NumberedThread[]>();
     session.threads.forEach((thread, i) => {
@@ -387,7 +395,8 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
               </div>
               <ol className="steps" aria-label="Interview phase">
                 <li className={inRequirements ? "is-on" : "is-done"}>1 Requirements</li>
-                <li className={inRequirements ? "" : "is-on"}>2 Design</li>
+                <li className={session.phase === "api" ? "is-on" : inDesign ? "is-done" : ""}>2 Entities & API</li>
+                <li className={inDesign ? "is-on" : ""}>3 Design</li>
               </ol>
               <Timer startedAt={session.startedAt} durationMin={session.durationMin} stopped={readOnly} onExpire={() => finish(false)} />
               <div className="topbar__usage muted" title="Model calls and tokens used in this interview">
@@ -409,8 +418,8 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                       type="button"
                       className="btn btn--primary"
                       onClick={submit}
-                      disabled={busy !== null || inRequirements}
-                      title={inRequirements ? "Lock in your requirements first" : undefined}
+                      disabled={busy !== null || !inDesign}
+                      title={inDesign ? undefined : "Finish steps 1 and 2 first"}
                     >
                       {busy === "submit" ? "Reviewing…" : "Submit for review"}
                     </button>
@@ -516,7 +525,11 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                   onAsk={ask}
                   onLock={lockRequirements}
                 />
-                {!inRequirements && (
+                {session.phase === "api" && (
+                  <ContractPanel draft={contract} busy={busy === "lock"} readOnly={readOnly} onDraft={setContract} onLock={lockContract} />
+                )}
+                {session.contract && <ContractSummary contract={session.contract} />}
+                {inDesign && (
                   <>
                     <Inspector
                       node={selectedNode}

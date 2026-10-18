@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { runRules } from "../src/server/interview/rules.ts";
 import { clone, urlDesign } from "./helpers.ts";
 
-const keys = (d: Parameters<typeof runRules>[0], r?: Parameters<typeof runRules>[1]) => runRules(d, r).map((f) => f.key);
+const keys = (d: Parameters<typeof runRules>[0], r?: Parameters<typeof runRules>[1], c?: Parameters<typeof runRules>[2]) =>
+  runRules(d, r, c).map((f) => f.key);
 const blocking = (d: Parameters<typeof runRules>[0]) => runRules(d).filter((f) => f.blocking).map((f) => f.key);
 
 describe("runRules: blocking gate", () => {
@@ -40,6 +41,20 @@ describe("runRules: blocking gate", () => {
     d.nodes.push({ id: "n5", type: "worker", label: "w", notes: "", parent: "" });
     d.edges = [{ id: "e1", from: "n1", to: "n3", mode: "sync", direction: "one_way", label: "" }, d.edges[2]!];
     expect(blocking(d)).toContain("no-entry-point");
+  });
+});
+
+describe("runRules: entities and API", () => {
+  const api = (text: string) => keys(urlDesign, null, { entities: "User, Url", api: text });
+
+  it("asks for concrete endpoints", () => {
+    expect(api("users can shorten links")).toContain("no-endpoints");
+    expect(api("POST /v1/urls\nGET /{code}")).not.toContain("no-endpoints");
+  });
+
+  it("questions a user id taken from the request body", () => {
+    expect(api("POST /v1/urls body: { userId, longUrl }")).toContain("user-id-in-body");
+    expect(api("POST /v1/urls body: { longUrl }\nGET /v1/users/{userId}/urls")).not.toContain("user-id-in-body");
   });
 });
 
@@ -99,9 +114,20 @@ describe("runRules: advisory checks", () => {
     expect(keys(d)).toContain("client-to-db:e9");
   });
 
-  it("flags missing estimates once requirements are locked", () => {
-    const reqs = { functional: "f", nonFunctional: "nf", estimates: "" };
-    expect(keys(urlDesign, reqs)).toContain("no-estimates");
-    expect(keys(urlDesign, { ...reqs, estimates: "4k QPS" })).not.toContain("no-estimates");
+  it("does not penalise skipped estimates", () => {
+    const reqs = { functional: "shorten; redirect", nonFunctional: "p99 < 50 ms", estimates: "" };
+    expect(keys(urlDesign, reqs)).toEqual(keys(urlDesign));
+  });
+
+  it("flags non-functional requirements without any numbers", () => {
+    const vague = { functional: "shorten", nonFunctional: "low latency, highly available", estimates: "" };
+    expect(keys(urlDesign, vague)).toContain("vague-nfr");
+    expect(keys(urlDesign, { ...vague, nonFunctional: "p99 redirect < 50 ms" })).not.toContain("vague-nfr");
+  });
+
+  it("flags a long, unprioritised feature list", () => {
+    const many = { functional: "- shorten\n- redirect\n- analytics\n- custom alias\n- expiry\n- QR codes", nonFunctional: "99.9%", estimates: "" };
+    expect(keys(urlDesign, many)).toContain("too-many-features");
+    expect(keys(urlDesign, { ...many, functional: "shorten; redirect; custom alias" })).not.toContain("too-many-features");
   });
 });

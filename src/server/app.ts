@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import type { z } from "zod";
 import {
   ClarifyRequestSchema,
+  ContractSchema,
   FinishRequestSchema,
   RequirementsSchema,
   StartSessionRequestSchema,
@@ -73,6 +74,11 @@ export function createApp(deps: { service: InterviewService; llm: LlmClient }): 
   app.post("/sessions/:id/requirements", async (c) => {
     const req = await parseBody(c, RequirementsSchema);
     return c.json(service.lockRequirements(c.req.param("id"), req));
+  });
+
+  app.post("/sessions/:id/contract", async (c) => {
+    const req = await parseBody(c, ContractSchema);
+    return c.json(service.lockContract(c.req.param("id"), req));
   });
 
   app.post("/sessions/:id/rounds", async (c) => {
