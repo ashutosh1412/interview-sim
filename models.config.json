@@ -1,0 +1,14 @@
+{
+  "$comment": "Task -> model routing. tier maps to a model per provider; change models here, not in code.",
+  "tiers": {
+    "quick":   { "api": "claude-haiku-5-5",  "claude-cli": "haiku" },
+    "default": { "api": "claude-sonnet-5-5", "claude-cli": "sonnet" },
+    "complex": { "api": "claude-opus-5-5",   "claude-cli": "opus" }
+  },
+  "tasks": {
+    "clarify":          { "tier": "quick",   "effort": "low",    "maxTokens": 600 },
+    "review_round":     { "tier": "default", "effort": "medium", "maxTokens": 2500 },
+    "grade_answers":    { "tier": "quick",   "effort": "medium", "maxTokens": 1500 },
+    "final_assessment": { "tier": "complex", "effort": "high",   "maxTokens": 4000 }
+  }
+}

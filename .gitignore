@@ -1,0 +1,17 @@
+# dependencies and build output
+node_modules
+dist
+coverage
+
+# local data: interview sessions and token usage
+data/sessions
+data/usage.json
+
+# secrets: keep .env.example, never a real .env
+.env
+.env.*
+!.env.example
+
+# OS and tooling noise
+.DS_Store
+*.log
