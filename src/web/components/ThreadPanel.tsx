@@ -4,6 +4,7 @@ import { STATUS_LABEL } from "../catalog.ts";
 
 interface Props {
   threads: Thread[];
+  nameOf: (nodeId: string) => string;
   drafts: Record<string, string>;
   selectedThreadId: string | null;
   readOnly: boolean;
@@ -11,11 +12,11 @@ interface Props {
   onSelect: (threadId: string) => void;
 }
 
-function targetText(t: Thread): string {
-  return t.target.kind === "global" ? "Whole design" : `${t.target.kind} ${t.target.id}`;
-}
+const KIND: Record<Thread["type"], string> = { question: "Question", issue: "Fix this", missing: "Missing", praise: "Nice" };
 
-export function ThreadPanel({ threads, drafts, selectedThreadId, readOnly, onDraft, onSelect }: Props) {
+export function ThreadPanel({ threads, nameOf, drafts, selectedThreadId, readOnly, onDraft, onSelect }: Props) {
+  const about = (t: Thread) =>
+    t.target.kind === "node" ? nameOf(t.target.id) : t.target.kind === "edge" ? "a connection" : "overall";
   const refs = useRef(new Map<string, HTMLElement>());
 
   useEffect(() => {
@@ -30,7 +31,7 @@ export function ThreadPanel({ threads, drafts, selectedThreadId, readOnly, onDra
     return (
       <section className="threads">
         <h2 className="panel-title">Interviewer</h2>
-        <p className="hint">Sketch your high-level design, then press <strong>Submit for review</strong>. Questions will appear as numbered circles on your components.</p>
+        <p className="hint">Draw your design, then press <strong>Submit for review</strong>. Questions appear as numbered circles.</p>
       </section>
     );
   }
@@ -54,8 +55,8 @@ export function ThreadPanel({ threads, drafts, selectedThreadId, readOnly, onDra
             <div className="thread__head">
               <span className={`badge badge--${thread.status} badge--${thread.type}`}>{num}</span>
               <span className="thread__meta">
-                {thread.type} · {targetText(thread)} · {STATUS_LABEL[thread.status]}
-                {thread.source === "rules" && " · auto-check"}
+                {KIND[thread.type]} · {about(thread)}
+                {thread.status === "followup" && ` · ${STATUS_LABEL.followup}`}
               </span>
             </div>
             <p className="thread__text">{thread.text}</p>

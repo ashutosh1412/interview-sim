@@ -8,20 +8,17 @@ const API_PLACEHOLDER = `POST /v1/urls
 
 GET /{shortCode} -> 302 redirect`;
 
-/** Read-only summary once the design phase has started. */
+/** Read-only summary of the locked entities and API. */
 export function ContractSummary({ contract }: { contract: Contract }) {
   return (
-    <details className="statement">
-      <summary>Your entities & API</summary>
-      <dl className="req-summary">
-        <dt>Core entities</dt>
-        <dd>{contract.entities}</dd>
-        <dt>API</dt>
-        <dd>
-          <pre className="api-pre">{contract.api}</pre>
-        </dd>
-      </dl>
-    </details>
+    <dl className="req-summary">
+      <dt>Core entities</dt>
+      <dd>{contract.entities}</dd>
+      <dt>API</dt>
+      <dd>
+        <pre className="api-pre">{contract.api}</pre>
+      </dd>
+    </dl>
   );
 }
 
@@ -39,10 +36,7 @@ export function ContractPanel({ draft, busy, readOnly, onDraft, onLock }: Props)
   return (
     <section className="requirements" aria-label="Core entities and API">
       <h2 className="panel-title">Step 2 · Core entities & API</h2>
-      <p className="hint">
-        About 5 minutes. List the main things your system stores and passes around, then the API clients call.
-        Every functional requirement should map to an endpoint.
-      </p>
+      <p className="hint">The main things your system stores, and the calls clients make.</p>
       <label className="field">
         Core entities
         <textarea
@@ -55,7 +49,7 @@ export function ContractPanel({ draft, busy, readOnly, onDraft, onLock }: Props)
         />
       </label>
       <label className="field">
-        API <span className="muted">(REST by default; derive the user from the auth token, not the body)</span>
+        API
         <textarea
           className="api-input"
           rows={8}

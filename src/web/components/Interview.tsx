@@ -56,7 +56,7 @@ import { FormatPanel } from "./FormatPanel.tsx";
 import { Inspector } from "./Inspector.tsx";
 import { DRAG_MIME, Palette } from "./Palette.tsx";
 import { ContractPanel, ContractSummary, EMPTY_CONTRACT, type ContractDraft } from "./ContractPanel.tsx";
-import { EMPTY_REQUIREMENTS, RequirementsPanel, type RequirementsDraft } from "./RequirementsPanel.tsx";
+import { EMPTY_REQUIREMENTS, RequirementsPanel, RequirementsSummary, type RequirementsDraft } from "./RequirementsPanel.tsx";
 import { ThreadPanel } from "./ThreadPanel.tsx";
 import { Timer } from "./Timer.tsx";
 
@@ -380,7 +380,6 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
 
   const canvasState = useMemo(() => ({ readOnly }), [readOnly]);
   const lastRound = session.rounds.at(-1);
-  const tokens = session.usage.inputTokens + session.usage.outputTokens;
   const strikeWarning = lastRound?.note.startsWith(STRIKE_NOTE) ?? false;
 
   return (
@@ -399,9 +398,6 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                 <li className={inDesign ? "is-on" : ""}>3 Design</li>
               </ol>
               <Timer startedAt={session.startedAt} durationMin={session.durationMin} stopped={readOnly} onExpire={() => finish(false)} />
-              <div className="topbar__usage muted" title="Model calls and tokens used in this interview">
-                {session.usage.calls} calls · {tokens.toLocaleString()} tokens
-              </div>
               <div className="topbar__actions">
                 {readOnly ? (
                   <>
@@ -502,18 +498,25 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                   onToggleMinimap={() => setMinimap((v) => !v)}
                 />
               </Panel>
-                  {!readOnly && (
+                  {!readOnly && nodes.length < 3 && (
                     <Panel position="bottom-center" className="canvas-hint">
-                      Drag between dots to connect · Double-click to edit text · Shift+drag to select many · Drop shapes into a container to group
+                      Click or drag shapes in · Drag between dots to connect · Double-click to edit
                     </Panel>
                   )}
                   <Controls showInteractive={false} />
                 </ReactFlow>
               </div>
               <aside className="sidebar">
-                <details className="statement" open={inRequirements}>
-                  <summary>Problem statement</summary>
+                <details className="statement" open={!inDesign}>
+
+                  <summary>{inDesign ? "Problem & your plan" : "Problem"}</summary>
+
                   <p>{problem.statement}</p>
+
+                  {session.requirements && <RequirementsSummary requirements={session.requirements} clarifications={session.clarifications} />}
+
+                  {session.contract && <ContractSummary contract={session.contract} />}
+
                 </details>
                 <RequirementsPanel
                   clarifications={session.clarifications}
@@ -528,34 +531,35 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                 {session.phase === "api" && (
                   <ContractPanel draft={contract} busy={busy === "lock"} readOnly={readOnly} onDraft={setContract} onLock={lockContract} />
                 )}
-                {session.contract && <ContractSummary contract={session.contract} />}
+
                 {inDesign && (
                   <>
                     <Inspector
                       node={selectedNode}
                       edge={selectedEdge}
+                      selectedCount={selectedNodes.length + selectedEdges.length}
                       nameOf={nameOf}
                       readOnly={readOnly}
+                      styleControls={
+                        <FormatPanel
+                          nodes={selectedNodes}
+                          edges={selectedEdges}
+                          onNodeStyle={styleNodes}
+                          onEdgeStyle={styleEdges}
+                          onAlign={align}
+                          onOrder={order}
+                          onDuplicate={duplicate}
+                          onToggleLock={toggleLock}
+                        />
+                      }
                       onNodeChange={updateNode}
                       onEdgeChange={updateEdge}
                       onEdgeDirection={setDirection}
                       onDelete={deleteSelected}
                     />
-                    {!readOnly && (
-                      <FormatPanel
-                        nodes={selectedNodes}
-                        edges={selectedEdges}
-                        onNodeStyle={styleNodes}
-                        onEdgeStyle={styleEdges}
-                        onAlign={align}
-                        onOrder={order}
-                        onDuplicate={duplicate}
-                        onToggleLock={toggleLock}
-                        onDelete={deleteSelected}
-                      />
-                    )}
                     <ThreadPanel
                       threads={session.threads}
+                      nameOf={nameOf}
                       drafts={answers}
                       selectedThreadId={selectedThreadId}
                       readOnly={readOnly}

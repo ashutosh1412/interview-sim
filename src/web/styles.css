@@ -145,7 +145,6 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 }
 .topbar__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar__actions { display: flex; gap: 8px; }
-.topbar__usage { font-size: 12px; }
 .timer { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 16px; }
 .timer--warn { color: var(--warn); }
 .timer--over { color: var(--danger); }
@@ -508,3 +507,14 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 /* ---------- entities & API ---------- */
 .api-input, .api-pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
 .api-pre { margin: 0; white-space: pre-wrap; }
+
+/* ---------- simple-by-default panels ---------- */
+.palette__more summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 6px 0; }
+.palette__more[open] summary { margin-bottom: 4px; }
+.palette__group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 8px 0 4px; }
+.inspector { display: grid; gap: 8px; }
+.inspector .field { margin-bottom: 0; }
+.style-toggle summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.style-toggle[open] summary { margin-bottom: 8px; }
+.style-toggle .format { border-bottom: 0; padding-bottom: 0; }
+.inspector__delete { justify-self: start; margin-left: 0; color: var(--danger); }

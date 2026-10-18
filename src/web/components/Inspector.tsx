@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { isAnnotation } from "../../shared/components.ts";
 import { COMPONENTS } from "../catalog.ts";
 import type { DesignFlowEdge, DesignFlowNode, DirectionChoice, EdgeData, NodeData } from "../graph.ts";
@@ -6,47 +7,72 @@ import { DirectionPicker } from "./DirectionPicker.tsx";
 interface Props {
   node: DesignFlowNode | undefined;
   edge: DesignFlowEdge | undefined;
+  /** How many items are selected; above 1 the card only offers style and delete. */
+  selectedCount: number;
   nameOf: (nodeId: string) => string;
   readOnly: boolean;
+  /** Colours, line styles and arranging: hidden behind a "Style" toggle to keep the card short. */
+  styleControls: ReactNode;
   onNodeChange: (id: string, patch: Partial<NodeData>) => void;
   onEdgeChange: (id: string, patch: Partial<EdgeData>) => void;
   onEdgeDirection: (id: string, choice: DirectionChoice) => void;
   onDelete: () => void;
 }
 
-export function Inspector({ node, edge, nameOf, readOnly, onNodeChange, onEdgeChange, onEdgeDirection, onDelete }: Props) {
+function Card({ title, readOnly, styleControls, onDelete, children }: {
+  title: string;
+  readOnly: boolean;
+  styleControls: ReactNode;
+  onDelete: () => void;
+  children?: ReactNode;
+}) {
+  return (
+    <section className="inspector" aria-label={title}>
+      <h2 className="panel-title">{title}</h2>
+      {children}
+      {!readOnly && (
+        <>
+          <details className="style-toggle">
+            <summary>Style</summary>
+            {styleControls}
+          </details>
+          <button type="button" className="btn btn--ghost btn--small inspector__delete" onClick={onDelete}>
+            Delete
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Edits whatever is selected on the canvas. Nothing selected: nothing shown. */
+export function Inspector(p: Props) {
+  const { node, edge, readOnly } = p;
+  const card = { readOnly, styleControls: p.styleControls, onDelete: p.onDelete };
+
+  if (p.selectedCount > 1) return <Card title={`${p.selectedCount} items selected`} {...card} />;
+
   if (node && isAnnotation(node.data.type)) {
     return (
-      <section className="inspector" aria-label="Selected text">
-        <h2 className="panel-title">
-          {COMPONENTS[node.data.type].label} <span className="muted">{node.id}</span>
-        </h2>
+      <Card title={COMPONENTS[node.data.type].label} {...card}>
         <label className="field">
-          Text <span className="muted">(the interviewer reads this)</span>
+          Text
           <textarea
             rows={4}
             value={node.data.label}
             maxLength={500}
             disabled={readOnly}
-            placeholder="e.g. Writes go through the queue so spikes don't hit the DB"
-            onChange={(e) => onNodeChange(node.id, { label: e.target.value })}
+            placeholder="The interviewer reads this"
+            onChange={(e) => p.onNodeChange(node.id, { label: e.target.value })}
           />
         </label>
-        {!readOnly && (
-          <button type="button" className="btn btn--ghost" onClick={onDelete}>
-            Delete
-          </button>
-        )}
-      </section>
+      </Card>
     );
   }
 
   if (node) {
     return (
-      <section className="inspector" aria-label="Selected component">
-        <h2 className="panel-title">
-          {COMPONENTS[node.data.type].label} <span className="muted">{node.id}</span>
-        </h2>
+      <Card title={COMPONENTS[node.data.type].label} {...card}>
         <label className="field">
           Name
           <input
@@ -54,71 +80,57 @@ export function Inspector({ node, edge, nameOf, readOnly, onNodeChange, onEdgeCh
             maxLength={200}
             disabled={readOnly}
             placeholder="e.g. URL service"
-            onChange={(e) => onNodeChange(node.id, { label: e.target.value })}
+            onChange={(e) => p.onNodeChange(node.id, { label: e.target.value })}
           />
         </label>
         <label className="field">
-          Notes <span className="muted">(tech, scaling, replication…)</span>
+          Notes
           <textarea
-            rows={3}
+            rows={2}
             value={node.data.notes}
             maxLength={500}
             disabled={readOnly}
-            placeholder="e.g. Postgres, 3 read replicas, sharded by user_id"
-            onChange={(e) => onNodeChange(node.id, { notes: e.target.value })}
+            placeholder="e.g. Postgres, 3 read replicas"
+            onChange={(e) => p.onNodeChange(node.id, { notes: e.target.value })}
           />
         </label>
-        {!readOnly && (
-          <button type="button" className="btn btn--ghost" onClick={onDelete}>
-            Delete component
-          </button>
-        )}
-      </section>
+      </Card>
     );
   }
 
   if (edge) {
     const mode = edge.data?.mode ?? "sync";
     return (
-      <section className="inspector" aria-label="Selected connection">
-        <h2 className="panel-title">
-          Connection <span className="muted">{edge.id}</span>
-        </h2>
-        <div className="field">
-          Direction
-          <DirectionPicker edge={edge} nameOf={nameOf} disabled={readOnly} onChange={(c) => onEdgeDirection(edge.id, c)} />
-        </div>
+      <Card title="Connection" {...card}>
+        <DirectionPicker edge={edge} nameOf={p.nameOf} disabled={readOnly} onChange={(c) => p.onEdgeDirection(edge.id, c)} />
         <label className="field">
           Label
           <input
             value={edge.data?.label ?? ""}
             maxLength={200}
             disabled={readOnly}
-            placeholder="e.g. gRPC, write path"
-            onChange={(e) => onEdgeChange(edge.id, { label: e.target.value })}
+            placeholder="e.g. HTTPS, write path"
+            onChange={(e) => p.onEdgeChange(edge.id, { label: e.target.value })}
           />
         </label>
-        <fieldset className="segmented" disabled={readOnly}>
-          <legend>Mode</legend>
+        <div className="mini-toggle" role="radiogroup" aria-label="Call type">
           {(["sync", "async"] as const).map((m) => (
-            <label key={m} className={mode === m ? "is-on" : ""}>
-              <input type="radio" name="mode" checked={mode === m} onChange={() => onEdgeChange(edge.id, { mode: m })} />
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={mode === m}
+              className={mode === m ? "is-on" : ""}
+              disabled={readOnly}
+              onClick={() => p.onEdgeChange(edge.id, { mode: m })}
+            >
               {m}
-            </label>
+            </button>
           ))}
-        </fieldset>
-        {!readOnly && (
-          <button type="button" className="btn btn--ghost" onClick={onDelete}>
-            Delete connection
-          </button>
-        )}
-      </section>
+        </div>
+      </Card>
     );
   }
 
-  return (
-    <section className="inspector inspector--empty">
-      <p className="hint">Select a component or connection to edit it. Connect components by dragging from any dot on one component to a dot on another. Double-click a connection to label it or change its direction.</p>
-    </section>
-  );
+  return null;
 }

@@ -11,7 +11,6 @@ import {
   Copy,
   Italic,
   Lock,
-  Trash2,
   Unlock,
   type LucideIcon,
 } from "lucide-react";
@@ -28,7 +27,6 @@ interface Props {
   onOrder: (where: "front" | "back") => void;
   onDuplicate: () => void;
   onToggleLock: () => void;
-  onDelete: () => void;
 }
 
 /** The value all items share, or undefined when they differ (shown as nothing selected). */
@@ -102,18 +100,15 @@ const ALIGN: { mode: AlignMode; Icon: LucideIcon; label: string }[] = [
   { mode: "bottom", Icon: AlignEndHorizontal, label: "Align bottom" },
 ];
 
-export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, onOrder, onDuplicate, onToggleLock, onDelete }: Props) {
+/** Style and arrange controls. Shown inside the selection card's "Style" toggle. */
+export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, onOrder, onDuplicate, onToggleLock }: Props) {
   if (!nodes.length && !edges.length) return null;
   const ns = nodes.map((n) => n.data.style ?? {});
   const es = edges.map((e) => e.data?.style ?? {});
   const locked = nodes.length > 0 && nodes.every((n) => n.draggable === false);
-  const count = nodes.length + edges.length;
 
   return (
-    <section className="format" aria-label="Format">
-      <h2 className="panel-title">
-        Format {count > 1 && <span className="muted">{count} selected</span>}
-      </h2>
+    <div className="format">
 
       {nodes.length > 0 && (
         <>
@@ -175,18 +170,15 @@ export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, o
         </>
       )}
 
-      <div className="format__row">
-        <span className="format__label">Arrange</span>
-        {nodes.length > 0 && (
-          <>
-            <IconButton Icon={ArrowUpToLine} label="Bring to front" onClick={() => onOrder("front")} />
-            <IconButton Icon={ArrowDownToLine} label="Send to back" onClick={() => onOrder("back")} />
-            <IconButton Icon={Copy} label="Duplicate (Cmd/Ctrl+D)" onClick={onDuplicate} />
-            <IconButton Icon={locked ? Unlock : Lock} label={locked ? "Unlock" : "Lock position"} active={locked} onClick={onToggleLock} />
-          </>
-        )}
-        <IconButton Icon={Trash2} label="Delete" onClick={onDelete} />
-      </div>
+      {nodes.length > 0 && (
+        <div className="format__row">
+          <span className="format__label">Arrange</span>
+          <IconButton Icon={ArrowUpToLine} label="Bring to front" onClick={() => onOrder("front")} />
+          <IconButton Icon={ArrowDownToLine} label="Send to back" onClick={() => onOrder("back")} />
+          <IconButton Icon={Copy} label="Duplicate (Cmd/Ctrl+D)" onClick={onDuplicate} />
+          <IconButton Icon={locked ? Unlock : Lock} label={locked ? "Unlock" : "Lock position"} active={locked} onClick={onToggleLock} />
+        </div>
+      )}
 
       {nodes.length > 1 && (
         <div className="format__row">
@@ -196,6 +188,6 @@ export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, o
           ))}
         </div>
       )}
-    </section>
+    </div>
   );
 }

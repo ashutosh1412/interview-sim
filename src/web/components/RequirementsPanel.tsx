@@ -29,27 +29,30 @@ function QandA({ clarifications }: { clarifications: Clarification[] }) {
   );
 }
 
-/** Read-only summary shown once the design phase has started. */
+/** Read-only summary of the locked requirements and the Q&A. */
 export function RequirementsSummary({ requirements, clarifications }: { requirements: Requirements; clarifications: Clarification[] }) {
   return (
-    <details className="statement">
-      <summary>Your requirements</summary>
+    <>
       <dl className="req-summary">
         <dt>Functional</dt>
         <dd>{requirements.functional}</dd>
         <dt>Non-functional</dt>
         <dd>{requirements.nonFunctional}</dd>
-        <dt>Estimates</dt>
-        <dd>{requirements.estimates || <em>none</em>}</dd>
+        {requirements.estimates && (
+          <>
+            <dt>Estimates</dt>
+            <dd>{requirements.estimates}</dd>
+          </>
+        )}
       </dl>
-      <QandA clarifications={clarifications} />
-    </details>
+      {clarifications.length > 0 && <QandA clarifications={clarifications} />}
+    </>
   );
 }
 
 export function RequirementsPanel({ clarifications, draft, locked, busy, readOnly, onDraft, onAsk, onLock }: Props) {
   const [question, setQuestion] = useState("");
-  if (locked) return <RequirementsSummary requirements={locked} clarifications={clarifications} />;
+  if (locked) return null;
 
   const ask = async () => {
     const q = question.trim();
@@ -61,9 +64,7 @@ export function RequirementsPanel({ clarifications, draft, locked, busy, readOnl
   return (
     <section className="requirements" aria-label="Requirements">
       <h2 className="panel-title">Step 1 · Requirements</h2>
-      <p className="hint">
-        Like a real interview: clarify scope and scale first. Ask the interviewer, then write down what you're designing for.
-      </p>
+      <p className="hint">Ask the interviewer anything unclear, then write what you'll build.</p>
 
       <QandA clarifications={clarifications} />
       {!readOnly && (
