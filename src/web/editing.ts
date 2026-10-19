@@ -4,7 +4,7 @@ import {
   absolutePosition,
   descendantsOf,
   nodeSize,
-  orderParentsFirst,
+  restack,
   type DesignFlowEdge,
   type DesignFlowNode,
 } from "./graph.ts";
@@ -69,7 +69,7 @@ export function pasteClip(
   }));
 
   return {
-    nodes: orderParentsFirst([...nodes.map((n) => ({ ...n, selected: false })), ...pasted]),
+    nodes: restack([...nodes.map((n) => ({ ...n, selected: false })), ...pasted]),
     edges: [...edges.map((e) => ({ ...e, selected: false })), ...pastedEdges],
   };
 }
@@ -103,13 +103,15 @@ export function alignNodes(nodes: DesignFlowNode[], ids: string[], mode: AlignMo
   });
 }
 
-/** Brings nodes in front of, or sends them behind, everything else. */
+/**
+ * Brings nodes (with everything inside them) in front of, or sends them behind, their
+ * neighbours in the same container, like draw.io's To Front / To Back.
+ */
 export function reorder(nodes: DesignFlowNode[], ids: string[], where: "front" | "back"): DesignFlowNode[] {
   const chosen = new Set(ids);
-  const others = nodes.filter((n) => !chosen.has(n.id)).map((n) => n.zIndex ?? 0);
-  // Never below 0: a negative z-index can slip behind the canvas and become unclickable.
-  const z = where === "front" ? Math.max(0, ...others) + 1 : Math.max(0, Math.min(...others, 1) - 1);
-  return nodes.map((n) => (chosen.has(n.id) ? { ...n, zIndex: z } : n));
+  const moved = nodes.filter((n) => chosen.has(n.id));
+  const rest = nodes.filter((n) => !chosen.has(n.id));
+  return restack(where === "front" ? [...rest, ...moved] : [...moved, ...rest]);
 }
 
 /**

@@ -153,18 +153,30 @@ export function descendantsOf<T extends Sized>(nodes: T[], id: string): Set<stri
   return out;
 }
 
-/** React Flow needs every container listed before the nodes inside it. */
-export function orderParentsFirst<T extends Sized>(nodes: T[]): T[] {
-  const placed = new Set<string>();
+/**
+ * Puts nodes in stacking order and gives each a distinct layer (zIndex), like draw.io:
+ * a container and everything inside it stack together, shapes inside a container are
+ * always above it, and among siblings the array order decides who is in front.
+ * It also keeps containers before their contents, which React Flow requires, and
+ * detaches nodes whose container is missing or part of a cycle.
+ */
+export function restack<T extends Sized & { zIndex?: number }>(nodes: T[]): T[] {
+  const ids = new Set(nodes.map((n) => n.id));
+  const normalized = nodes.map((n) => (n.parentId && !ids.has(n.parentId) ? { ...n, parentId: undefined } : n));
+  const children = new Map<string | undefined, T[]>();
+  for (const n of normalized) children.set(n.parentId, [...(children.get(n.parentId) ?? []), n]);
+
   const out: T[] = [];
-  let remaining = nodes;
-  while (remaining.length) {
-    const ready = remaining.filter((n) => !n.parentId || placed.has(n.parentId) || !nodes.some((p) => p.id === n.parentId));
-    if (!ready.length) return [...out, ...remaining.map((n) => ({ ...n, parentId: undefined }))]; // broken cycle: detach
-    ready.forEach((n) => placed.add(n.id));
-    out.push(...ready);
-    remaining = remaining.filter((n) => !placed.has(n.id));
-  }
+  const placed = new Set<string>();
+  const visit = (n: T) => {
+    if (placed.has(n.id)) return;
+    placed.add(n.id);
+    out.push({ ...n, zIndex: out.length });
+    for (const child of children.get(n.id) ?? []) visit(child);
+  };
+  for (const root of children.get(undefined) ?? []) visit(root);
+  // Anything left is caught in a parent cycle: put it back on the canvas.
+  for (const n of normalized) if (!placed.has(n.id)) visit({ ...n, parentId: undefined });
   return out;
 }
 
@@ -194,7 +206,8 @@ export function reparent<T extends Sized>(nodes: T[], id: string): T[] {
   if (newParent === node.parentId) return nodes;
   const origin = newParent ? absolutePosition(nodes, newParent) : { x: 0, y: 0 };
   const moved = { ...node, parentId: newParent, position: { x: abs.x - origin.x, y: abs.y - origin.y } };
-  return orderParentsFirst(nodes.map((n) => (n.id === id ? moved : n)));
+  // Moved to the end of the list, so it lands on top of its new neighbours.
+  return restack([...nodes.filter((n) => n.id !== id), moved]);
 }
 
 /** Deleting a container deletes what is inside it, like draw.io. */

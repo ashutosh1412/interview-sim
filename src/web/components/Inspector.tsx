@@ -1,7 +1,9 @@
+import { ArrowDownToLine, ArrowUpToLine } from "lucide-react";
 import type { ReactNode } from "react";
 import { isAnnotation, isClassShape } from "../../shared/components.ts";
 import { COMPONENTS } from "../catalog.ts";
 import type { DesignFlowEdge, DesignFlowNode, DirectionChoice, EdgeData, NodeData } from "../graph.ts";
+import { shortcut } from "./ContextMenu.tsx";
 import { DirectionPicker } from "./DirectionPicker.tsx";
 
 interface Props {
@@ -16,13 +18,16 @@ interface Props {
   onNodeChange: (id: string, patch: Partial<NodeData>) => void;
   onEdgeChange: (id: string, patch: Partial<EdgeData>) => void;
   onEdgeDirection: (id: string, choice: DirectionChoice) => void;
+  /** Layering for shapes; omitted for connections. */
+  onOrder: (where: "front" | "back") => void;
   onDelete: () => void;
 }
 
-function Card({ title, readOnly, styleControls, onDelete, children }: {
+function Card({ title, readOnly, styleControls, onOrder, onDelete, children }: {
   title: string;
   readOnly: boolean;
   styleControls: ReactNode;
+  onOrder?: (where: "front" | "back") => void;
   onDelete: () => void;
   children?: ReactNode;
 }) {
@@ -36,9 +41,21 @@ function Card({ title, readOnly, styleControls, onDelete, children }: {
             <summary>Style</summary>
             {styleControls}
           </details>
-          <button type="button" className="btn btn--ghost btn--small inspector__delete" onClick={onDelete}>
-            Delete
-          </button>
+          <div className="inspector__actions">
+            {onOrder && (
+              <>
+                <button type="button" className="btn btn--small" title={`Bring to front (${shortcut("mod+shift+f")} or ${shortcut("mod+shift+up")})`} onClick={() => onOrder("front")}>
+                  <ArrowUpToLine size={14} aria-hidden="true" /> To front
+                </button>
+                <button type="button" className="btn btn--small" title={`Send to back (${shortcut("mod+shift+b")} or ${shortcut("mod+shift+down")})`} onClick={() => onOrder("back")}>
+                  <ArrowDownToLine size={14} aria-hidden="true" /> To back
+                </button>
+              </>
+            )}
+            <button type="button" className="btn btn--ghost btn--small inspector__delete" onClick={onDelete}>
+              Delete
+            </button>
+          </div>
         </>
       )}
     </section>
@@ -49,12 +66,13 @@ function Card({ title, readOnly, styleControls, onDelete, children }: {
 export function Inspector(p: Props) {
   const { node, edge, readOnly } = p;
   const card = { readOnly, styleControls: p.styleControls, onDelete: p.onDelete };
+  const shapeCard = { ...card, onOrder: p.onOrder };
 
-  if (p.selectedCount > 1) return <Card title={`${p.selectedCount} items selected`} {...card} />;
+  if (p.selectedCount > 1) return <Card title={`${p.selectedCount} items selected`} {...shapeCard} />;
 
   if (node && isAnnotation(node.data.type)) {
     return (
-      <Card title={COMPONENTS[node.data.type].label} {...card}>
+      <Card title={COMPONENTS[node.data.type].label} {...shapeCard}>
         <label className="field">
           Text
           <textarea
@@ -73,7 +91,7 @@ export function Inspector(p: Props) {
   if (node) {
     const isClass = isClassShape(node.data.type);
     return (
-      <Card title={COMPONENTS[node.data.type].label} {...card}>
+      <Card title={COMPONENTS[node.data.type].label} {...shapeCard}>
         <label className="field">
           Name
           <input

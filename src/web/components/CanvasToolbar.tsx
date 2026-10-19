@@ -1,17 +1,22 @@
 import { getNodesBounds, getViewportForBounds, useReactFlow } from "@xyflow/react";
 import { toPng } from "html-to-image";
-import { Grid3x3, ImageDown, Map as MapIcon, Redo2, Undo2, type LucideIcon } from "lucide-react";
+import { ArrowDownToLine, ArrowUpToLine, Grid3x3, ImageDown, Map as MapIcon, Redo2, Undo2, type LucideIcon } from "lucide-react";
+import { shortcut } from "./ContextMenu.tsx";
 import { useState } from "react";
 
 interface Props {
   readOnly: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  /** Something is selected that can be layered. */
+  canArrange: boolean;
   snap: boolean;
   minimap: boolean;
   fileName: string;
   onUndo: () => void;
   onRedo: () => void;
+  onToFront: () => void;
+  onToBack: () => void;
   onToggleSnap: () => void;
   onToggleMinimap: () => void;
 }
@@ -58,8 +63,11 @@ export function CanvasToolbar(p: Props) {
     <div className="canvas-toolbar" role="toolbar" aria-label="Canvas tools">
       {!p.readOnly && (
         <>
-          <Tool Icon={Undo2} label="Undo (Cmd/Ctrl+Z)" onClick={p.onUndo} disabled={!p.canUndo} />
-          <Tool Icon={Redo2} label="Redo (Cmd/Ctrl+Shift+Z)" onClick={p.onRedo} disabled={!p.canRedo} />
+          <Tool Icon={Undo2} label={`Undo (${shortcut("mod+z")})`} onClick={p.onUndo} disabled={!p.canUndo} />
+          <Tool Icon={Redo2} label={`Redo (${shortcut("mod+shift+z")})`} onClick={p.onRedo} disabled={!p.canRedo} />
+          <span className="canvas-toolbar__sep" />
+          <Tool Icon={ArrowUpToLine} label={`Bring to front (${shortcut("mod+shift+f")} or ${shortcut("mod+shift+up")})`} onClick={p.onToFront} disabled={!p.canArrange} />
+          <Tool Icon={ArrowDownToLine} label={`Send to back (${shortcut("mod+shift+b")} or ${shortcut("mod+shift+down")})`} onClick={p.onToBack} disabled={!p.canArrange} />
           <span className="canvas-toolbar__sep" />
           <Tool Icon={Grid3x3} label="Snap to grid" onClick={p.onToggleSnap} active={p.snap} />
         </>

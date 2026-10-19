@@ -64,4 +64,11 @@ export const api = {
     post<Session>(`/sessions/${encodeURIComponent(id)}/finish`, { design, requestId }),
 };
 
-export const newRequestId = () => crypto.randomUUID();
+/**
+ * A unique id per request. crypto.randomUUID only exists in secure contexts (https or
+ * localhost); opening the dev app from another device over http://<LAN IP> isn't one.
+ */
+export function newRequestId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  return Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+}

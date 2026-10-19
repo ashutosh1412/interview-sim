@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   currentChoice,
   DEFAULT_EDGE_DATA,
-  orderParentsFirst,
+  restack,
   reparent,
   toDesign,
   withDirection,
@@ -72,9 +72,17 @@ describe("containers", () => {
     expect(q?.position).toEqual({ x: 920, y: 940 }); // relative 900,900 + az (20,40) + region (0,0)
   });
 
-  it("orders containers before their children", () => {
-    const ordered = orderParentsFirst([shape("q1", 0, 0, "g1"), box("g1", 0, 0)]);
-    expect(ordered.map((n) => n.id)).toEqual(["g1", "q1"]);
+  it("orders containers before their children and stacks each container with its contents", () => {
+    const stacked = restack([shape("q1", 0, 0, "g1"), box("g1", 0, 0), shape("s1", 0, 0), shape("q2", 0, 0, "g1")]);
+    expect(stacked.map((n) => n.id)).toEqual(["g1", "q1", "q2", "s1"]);
+    expect(stacked.map((n) => n.zIndex)).toEqual([0, 1, 2, 3]); // distinct, children above their container
+  });
+
+  it("puts nodes with a missing or cyclic container back on the canvas", () => {
+    const stacked = restack([shape("a", 0, 0, "ghost"), { ...box("x", 0, 0), parentId: "y" }, { ...box("y", 0, 0), parentId: "x" }]);
+    expect(stacked.find((n) => n.id === "a")?.parentId).toBeUndefined();
+    expect(stacked).toHaveLength(3);
+    expect(stacked.some((n) => n.parentId === undefined && (n.id === "x" || n.id === "y"))).toBe(true);
   });
 
   it("deletes everything inside a deleted container", () => {

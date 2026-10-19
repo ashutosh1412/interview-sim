@@ -19,7 +19,15 @@ export function loadDraft(sessionId: string): LocalDraft | undefined {
     if (!raw) return undefined;
     const parsed = JSON.parse(raw) as Partial<LocalDraft>;
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) return undefined;
-    return { nodes: parsed.nodes, edges: parsed.edges, answers: parsed.answers ?? {}, requirements: parsed.requirements, contract: parsed.contract };
+    // Open with nothing selected: React Flow sets a shape's layer when it first loads it, so a
+    // restored selection would start out lifted above its neighbours.
+    return {
+      nodes: parsed.nodes.map((n) => ({ ...n, selected: false })),
+      edges: parsed.edges.map((e) => ({ ...e, selected: false })),
+      answers: parsed.answers ?? {},
+      requirements: parsed.requirements,
+      contract: parsed.contract,
+    };
   } catch {
     return undefined;
   }

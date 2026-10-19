@@ -85,7 +85,11 @@ export function createClaudeCliProvider(binary = "claude"): LlmProvider {
         child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
         child.on("error", (cause) => {
           req.signal.removeEventListener("abort", onAbort);
-          reject(new AppError("llm_unavailable", "Could not start the claude CLI. Is it installed and logged in?", { cause }));
+          const hint =
+            process.platform === "win32"
+              ? " On Windows the claude command is a .cmd wrapper Node can't start directly: run this app in WSL, or use LLM_PROVIDER=api."
+              : " Is it installed, on PATH and logged in?";
+          reject(new AppError("llm_unavailable", `Could not start the claude CLI.${hint}`, { cause }));
         });
         child.on("close", (code) => {
           req.signal.removeEventListener("abort", onAbort);

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { isComposing } from "../keys.ts";
 
 interface Props {
   value: string;
@@ -45,6 +46,7 @@ export function EditableText({ value, editing, multiline, maxLength, placeholder
     onBlur: onDone,
     onKeyDown: (e: React.KeyboardEvent) => {
       e.stopPropagation(); // keep Backspace from deleting the node
+      if (isComposing(e.nativeEvent)) return; // Enter is confirming IME input, not finishing
       if (e.key === "Escape" || (e.key === "Enter" && !(multiline && e.shiftKey))) {
         e.preventDefault();
         onDone();

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Clarification, Requirements } from "../../shared/schemas.ts";
+import { isComposing } from "../keys.ts";
 
 export type RequirementsDraft = Requirements;
 export const EMPTY_REQUIREMENTS: RequirementsDraft = { functional: "", nonFunctional: "", estimates: "" };
@@ -75,7 +76,7 @@ export function RequirementsPanel({ clarifications, draft, locked, busy, readOnl
             placeholder="Ask the interviewer, e.g. How many users per day?"
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") void ask();
+              if (e.key === "Enter" && !isComposing(e.nativeEvent)) void ask();
             }}
             disabled={busy}
           />

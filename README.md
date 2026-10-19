@@ -60,6 +60,14 @@ Change the tiers or models in that file; no code changes needed.
 - A failed call saves nothing, and your canvas and answer drafts are autosaved in the browser.
 - Sessions are JSON files in `data/sessions/`, written atomically.
 
+## Platform support
+
+- **Any modern browser** (Chrome, Edge, Firefox, Safari) on macOS, Windows or Linux.
+- **Shortcuts** use Cmd on Mac and Ctrl elsewhere: Z undo, Shift+Z or Y redo, C copy, V paste, D duplicate, A select all, Shift+F or Shift+↑ bring to front, Shift+B or Shift+↓ send to back. The arrow versions exist because some browsers keep Shift+B for their bookmarks bar. Shortcuts work on non-Latin keyboard layouts, ignore AltGr, and don't fire while an input method (Chinese, Japanese, Korean) is composing.
+- **No keyboard or mouse needed:** every action is also in the top toolbar, the selected item's card, and the right-click menu (Ctrl+click or two-finger click on Mac). On touch screens, tap shapes in the list to add them.
+- **`claude-cli` provider:** macOS and Linux. On Windows, run the app in WSL or use `LLM_PROVIDER=api`; the `mock` and `api` providers work everywhere.
+- Commands in this README that set variables inline (`SIM_STRONG_MODEL=opus npm run sim`) are bash/zsh syntax; in PowerShell use `$env:SIM_STRONG_MODEL="opus"; npm run sim`.
+
 ## Develop
 
 ```bash

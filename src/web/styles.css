@@ -534,7 +534,9 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 .style-toggle summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 .style-toggle[open] summary { margin-bottom: 8px; }
 .style-toggle .format { border-bottom: 0; padding-bottom: 0; }
-.inspector__delete { justify-self: start; margin-left: 0; color: var(--danger); }
+.inspector__actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.inspector__actions .btn--small { margin-left: 0; display: inline-flex; align-items: center; gap: 4px; }
+.inspector__delete { color: var(--danger); }
 
 /* ---------- knowledge check & result ---------- */
 .knowledge-count { margin: 0 0 8px; font-size: 13px; color: var(--muted); }
@@ -552,3 +554,35 @@ input:focus-visible, textarea:focus-visible, .btn:focus-visible { outline: 2px s
 .scores th { white-space: normal; min-width: 140px; }
 p > .verdict { font-size: inherit; }
 .scores--knowledge th { text-transform: none; }
+
+/* ---------- right-click menu ---------- */
+.context-menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 200px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 0.25);
+  font-size: 13px;
+}
+.context-menu__section + .context-menu__section { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+.context-menu__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.context-menu__item:hover:not(:disabled), .context-menu__item:focus-visible { background: var(--surface-2); outline: none; }
+.context-menu__item:disabled { opacity: 0.45; cursor: default; }
+.context-menu__item.is-danger { color: var(--danger); }
+.context-menu__shortcut { color: var(--muted); }

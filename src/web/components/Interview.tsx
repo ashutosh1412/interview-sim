@@ -24,8 +24,8 @@ import {
   DEFAULT_EDGE_DATA,
   defaultSize,
   flowKindFor,
-  orderParentsFirst,
   reparent,
+  restack,
   withoutNodes,
   edgeMarkers,
   nextId,
@@ -50,6 +50,7 @@ import { AnnotationNode } from "./AnnotationNode.tsx";
 import { AssessmentView } from "./AssessmentView.tsx";
 import { CanvasToolbar } from "./CanvasToolbar.tsx";
 import { ContainerNode } from "./ContainerNode.tsx";
+import { ContextMenu, shortcut, type MenuSections } from "./ContextMenu.tsx";
 import { DesignEdge } from "./DesignEdge.tsx";
 import { DesignNode } from "./DesignNode.tsx";
 import { FormatPanel } from "./FormatPanel.tsx";
@@ -77,7 +78,7 @@ function fromDesign(design: Design | undefined): { nodes: DesignFlowNode[]; edge
   if (!design) return { nodes: [], edges: [] };
   const childIndex = new Map<string, number>();
   return {
-    nodes: orderParentsFirst(
+    nodes: restack(
       design.nodes.map((n, i) => {
         // Children are laid out inside their container; everything else on a grid.
         const k = n.parent ? (childIndex.get(n.parent) ?? 0) : 0;
@@ -109,18 +110,21 @@ function fromDesign(design: Design | undefined): { nodes: DesignFlowNode[]; edge
 
 const notSelf = (c: Connection | Edge) => c.source !== c.target;
 
+
 type Pending = { kind: "submit" | "finish" | "clarify" | "lock"; run: () => Promise<Session> };
 
 function Workspace({ initial, problem, onExit }: { initial: Session; problem: PublicProblem; onExit: () => void }) {
   const [session, setSession] = useState(initial);
   const [draft] = useState(() => loadDraft(initial.id) ?? { ...fromDesign(initial.rounds.at(-1)?.design), answers: {} });
-  const [nodes, setNodes, onNodesChange] = useNodesState<DesignFlowNode>(draft.nodes);
+  // restack also upgrades drafts saved before layers were managed this way.
+  const [nodes, setNodes, onNodesChange] = useNodesState<DesignFlowNode>(restack(draft.nodes));
   const [edges, setEdges, onEdgesChange] = useEdgesState<DesignFlowEdge>(draft.edges);
   const [answers, setAnswers] = useState<Record<string, string>>(draft.answers);
   const [requirements, setRequirements] = useState<RequirementsDraft>(draft.requirements ?? EMPTY_REQUIREMENTS);
   const [contract, setContract] = useState<ContractDraft>(draft.contract ?? EMPTY_CONTRACT);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [editingEdgeId, setEditingEdgeId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; kind: "node" | "edge" | "pane"; edgeId?: string } | null>(null);
   const [busy, setBusy] = useState<Pending["kind"] | null>(null);
   const [failed, setFailed] = useState<{ pending: Pending; message: string; retryable: boolean } | null>(null);
   const [showAssessment, setShowAssessment] = useState(initial.assessment !== null);
@@ -151,12 +155,12 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
           type: flowKindFor(type),
           position: at,
           ...defaultSize(type),
-          // Containers sit underneath so the shapes inside them stay clickable.
-          zIndex: flowKindFor(type) === "container" ? 0 : 1,
           data: { type, label, notes: "" },
           selected: true,
         };
-        const next = [...current.map((n) => ({ ...n, selected: false })), node];
+        const others = current.map((n) => ({ ...n, selected: false }));
+        // New containers go underneath existing shapes so they don't cover them; anything else on top.
+        const next = restack(flowKindFor(type) === "container" ? [node, ...others] : [...others, node]);
         return position ? reparent(next, id) : next;
       });
     },
@@ -298,7 +302,53 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
     setEdges((es) => es.map((e) => ({ ...e, selected: true })));
   };
 
-  useShortcuts(!readOnly, { undo: history.undo, redo: history.redo, copy, paste, duplicate, selectAll });
+  // ---------- right-click menu ----------
+  /** Like draw.io: right-clicking something unselected selects just it; a selected item keeps the selection. */
+  const selectOnly = (nodeId: string | null, edgeId: string | null) => {
+    setNodes((ns) => ns.map((n) => ({ ...n, selected: n.id === nodeId })));
+    setEdges((es) => es.map((e) => ({ ...e, selected: e.id === edgeId })));
+  };
+  const openMenu = (e: React.MouseEvent | MouseEvent, kind: "node" | "edge" | "pane", edgeId?: string) => {
+    e.preventDefault();
+    if (!readOnly) setMenu({ x: e.clientX, y: e.clientY, kind, edgeId });
+  };
+  const closeMenu = useCallback(() => setMenu(null), []);
+
+  const menuSections: MenuSections =
+    menu?.kind === "node"
+      ? [
+          [
+            { label: "Bring to front", shortcut: shortcut("mod+shift+f"), onSelect: () => order("front") },
+            { label: "Send to back", shortcut: shortcut("mod+shift+b"), onSelect: () => order("back") },
+          ],
+          [
+            { label: "Duplicate", shortcut: shortcut("mod+d"), onSelect: duplicate },
+            { label: "Copy", shortcut: shortcut("mod+c"), onSelect: copy },
+          ],
+          [{ label: "Delete", shortcut: shortcut("backspace"), danger: true, onSelect: deleteSelected }],
+        ]
+      : menu?.kind === "edge"
+        ? [
+            [{ label: "Edit connection", onSelect: () => menu.edgeId && setEditingEdgeId(menu.edgeId) }],
+            [{ label: "Delete", shortcut: shortcut("backspace"), danger: true, onSelect: () => menu.edgeId && removeEdge(menu.edgeId) }],
+          ]
+        : [
+            [
+              { label: "Paste", shortcut: shortcut("mod+v"), disabled: !clipboard.current, onSelect: paste },
+              { label: "Select all", shortcut: shortcut("mod+a"), onSelect: selectAll },
+            ],
+          ];
+
+  useShortcuts(!readOnly, {
+    undo: history.undo,
+    redo: history.redo,
+    copy,
+    paste,
+    duplicate,
+    selectAll,
+    toFront: () => order("front"),
+    toBack: () => order("back"),
+  });
 
   const isValidConnection = useCallback(
     (c: Connection | Edge) => {
@@ -465,6 +515,18 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                   onEdgesChange={onEdgesChange}
                   onConnect={onConnect}
                 onNodeDragStop={onNodeDragStop}
+                onNodeContextMenu={(e, node) => {
+                  if (!node.selected) selectOnly(node.id, null);
+                  openMenu(e, "node");
+                }}
+                onEdgeContextMenu={(e, edge) => {
+                  if (!edge.selected) selectOnly(null, edge.id);
+                  openMenu(e, "edge", edge.id);
+                }}
+                onPaneContextMenu={(e) => openMenu(e, "pane")}
+                onMoveStart={closeMenu}
+                // Keep a selected shape on its own layer, so "Send to back" shows immediately (as in draw.io).
+                elevateNodesOnSelect={false}
                 onNodesDelete={(deleted) => removeNodes(deleted.map((n) => n.id))}
                   onEdgeDoubleClick={(_, edge) => {
                     if (!readOnly) setEditingEdgeId(edge.id);
@@ -487,6 +549,9 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
               <Panel position="top-right">
                 <CanvasToolbar
                   readOnly={readOnly}
+                  canArrange={selectedNodes.length > 0}
+                  onToFront={() => order("front")}
+                  onToBack={() => order("back")}
                   canUndo={history.canUndo}
                   canRedo={history.canRedo}
                   snap={snap}
@@ -547,7 +612,6 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                           onNodeStyle={styleNodes}
                           onEdgeStyle={styleEdges}
                           onAlign={align}
-                          onOrder={order}
                           onDuplicate={duplicate}
                           onToggleLock={toggleLock}
                         />
@@ -555,6 +619,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                       onNodeChange={updateNode}
                       onEdgeChange={updateEdge}
                       onEdgeDirection={setDirection}
+                      onOrder={order}
                       onDelete={deleteSelected}
                     />
                     <ThreadPanel
@@ -571,7 +636,8 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                 )}
               </aside>
             </div>
-            {showAssessment && session.assessment && (
+            {menu && <ContextMenu x={menu.x} y={menu.y} sections={menuSections} onClose={closeMenu} />}
+        {showAssessment && session.assessment && (
               <AssessmentView
                 assessment={session.assessment}
                 outcome={session.outcome}

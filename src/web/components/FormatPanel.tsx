@@ -5,8 +5,6 @@ import {
   AlignStartHorizontal,
   AlignStartVertical,
   AlignCenterVertical,
-  ArrowDownToLine,
-  ArrowUpToLine,
   Bold,
   Copy,
   Italic,
@@ -24,7 +22,6 @@ interface Props {
   onNodeStyle: (patch: Partial<ShapeStyle>) => void;
   onEdgeStyle: (patch: Partial<LineStyle>) => void;
   onAlign: (mode: AlignMode) => void;
-  onOrder: (where: "front" | "back") => void;
   onDuplicate: () => void;
   onToggleLock: () => void;
 }
@@ -101,7 +98,7 @@ const ALIGN: { mode: AlignMode; Icon: LucideIcon; label: string }[] = [
 ];
 
 /** Style and arrange controls. Shown inside the selection card's "Style" toggle. */
-export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, onOrder, onDuplicate, onToggleLock }: Props) {
+export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, onDuplicate, onToggleLock }: Props) {
   if (!nodes.length && !edges.length) return null;
   const ns = nodes.map((n) => n.data.style ?? {});
   const es = edges.map((e) => e.data?.style ?? {});
@@ -173,8 +170,6 @@ export function FormatPanel({ nodes, edges, onNodeStyle, onEdgeStyle, onAlign, o
       {nodes.length > 0 && (
         <div className="format__row">
           <span className="format__label">Arrange</span>
-          <IconButton Icon={ArrowUpToLine} label="Bring to front" onClick={() => onOrder("front")} />
-          <IconButton Icon={ArrowDownToLine} label="Send to back" onClick={() => onOrder("back")} />
           <IconButton Icon={Copy} label="Duplicate (Cmd/Ctrl+D)" onClick={onDuplicate} />
           <IconButton Icon={locked ? Unlock : Lock} label={locked ? "Unlock" : "Lock position"} active={locked} onClick={onToggleLock} />
         </div>

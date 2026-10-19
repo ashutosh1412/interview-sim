@@ -58,10 +58,31 @@ describe("arrange", () => {
     expect(middle.find((n) => n.id === "a")?.position.y).toBe(10 + (400 - 110) / 2);
   });
 
-  it("brings to front and sends to back", () => {
-    const nodes = [{ ...shape("a", 0, 0), zIndex: 1 }, { ...shape("b", 0, 0), zIndex: 3 }];
-    expect(reorder(nodes, ["a"], "front").find((n) => n.id === "a")?.zIndex).toBe(4);
-    expect(reorder(nodes, ["b"], "back").find((n) => n.id === "b")?.zIndex).toBe(0);
+  it("brings to front and sends to back among siblings", () => {
+    const z = (ns: DesignFlowNode[], id: string) => ns.find((n) => n.id === id)?.zIndex ?? -1;
+    const nodes = [shape("a", 0, 0), shape("b", 0, 0), shape("c", 0, 0)];
+    const front = reorder(nodes, ["a"], "front");
+    expect(z(front, "a")).toBeGreaterThan(z(front, "c"));
+    const back = reorder(nodes, ["c"], "back");
+    expect(z(back, "c")).toBeLessThan(z(back, "a"));
+  });
+
+  it("can send a shape inside a container behind its neighbour, but never behind the container", () => {
+    // The reported bug: two overlapping shapes in a group could not be reordered.
+    const z = (ns: DesignFlowNode[], id: string) => ns.find((n) => n.id === id)?.zIndex ?? -1;
+    const nodes = [box("g", 0, 0), shape("api", 10, 40, "g"), shape("jobs", 60, 60, "g")];
+    const back = reorder(nodes, ["jobs"], "back");
+    expect(z(back, "jobs")).toBeLessThan(z(back, "api"));
+    expect(z(back, "jobs")).toBeGreaterThan(z(back, "g"));
+    // React Flow draws a child at max(own z, container z + 1); our layers survive that rule.
+    const drawn = (id: string) => Math.max(z(back, id), z(back, "g") + 1);
+    expect(drawn("jobs")).toBeLessThan(drawn("api"));
+  });
+
+  it("moves a container together with its contents", () => {
+    const nodes = [box("g", 0, 0), shape("in", 0, 0, "g"), shape("out", 0, 0)];
+    const front = reorder(nodes, ["g"], "front");
+    expect(front.map((n) => n.id)).toEqual(["out", "g", "in"]);
   });
 });
 

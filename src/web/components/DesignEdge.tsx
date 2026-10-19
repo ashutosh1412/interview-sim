@@ -2,6 +2,7 @@ import { BaseEdge, EdgeLabelRenderer, getBezierPath, getSmoothStepPath, getStrai
 import { Trash2 } from "lucide-react";
 import { memo, useEffect, useRef } from "react";
 import { useEdgeEdit, type EdgeEditApi } from "../edgeEditContext.ts";
+import { isComposing } from "../keys.ts";
 import { DEFAULT_EDGE_DATA, type DesignFlowEdge, type EdgeData } from "../graph.ts";
 import { Badges } from "./Badges.tsx";
 import { DirectionPicker } from "./DirectionPicker.tsx";
@@ -25,8 +26,9 @@ function EdgeEditor({ id, source, target, data, api }: EditorProps) {
       role="dialog"
       aria-label="Edit connection"
       onKeyDown={(e) => {
-        if (e.key === "Escape" || (e.key === "Enter" && e.target === inputRef.current)) api.close();
         e.stopPropagation(); // keep Backspace in the input from deleting the connection
+        if (isComposing(e.nativeEvent)) return;
+        if (e.key === "Escape" || (e.key === "Enter" && e.target === inputRef.current)) api.close();
       }}
     >
       <input

@@ -1,20 +1,18 @@
 import { useEffect, useRef } from "react";
+import { matchShortcut, type ShortcutAction } from "./keys.ts";
 
-export interface ShortcutActions {
-  undo: () => void;
-  redo: () => void;
-  copy: () => void;
-  paste: () => void;
-  duplicate: () => void;
-  selectAll: () => void;
-}
+export type ShortcutActions = Record<ShortcutAction, () => void>;
 
 function isTyping(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
-/** draw.io-style shortcuts (Cmd on Mac, Ctrl elsewhere). Ignored while typing in a field. */
+/**
+ * draw.io-style shortcuts, ignored while typing in a field. Cmd or Ctrl +
+ * Z undo, Shift+Z / Y redo, C copy, V paste, D duplicate, A select all,
+ * Shift+F or Shift+↑ bring to front, Shift+B or Shift+↓ send to back. See keys.ts.
+ */
 export function useShortcuts(enabled: boolean, actions: ShortcutActions): void {
   const latest = useRef(actions);
   latest.current = actions;
@@ -22,21 +20,11 @@ export function useShortcuts(enabled: boolean, actions: ShortcutActions): void {
   useEffect(() => {
     if (!enabled) return;
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || isTyping(e.target)) return;
-      const key = e.key.toLowerCase();
-      const a = latest.current;
-      const handlers: Record<string, (() => void) | undefined> = {
-        z: e.shiftKey ? a.redo : a.undo,
-        y: a.redo,
-        c: a.copy,
-        v: a.paste,
-        d: a.duplicate,
-        a: a.selectAll,
-      };
-      const handler = handlers[key];
-      if (!handler) return;
+      if (isTyping(e.target)) return;
+      const action = matchShortcut(e);
+      if (!action) return;
       e.preventDefault();
-      handler();
+      latest.current[action]();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
