@@ -177,3 +177,49 @@ describe("unwrapAnswer", () => {
     expect(unwrapAnswer("{not json")).toBe("{not json");
   });
 });
+
+describe("knowledge check", () => {
+  const goodReplication =
+    "Replication is async from the leader, so a lagging follower can serve stale data. For read-your-writes I route the " +
+    "user's own reads to the leader for a minute after a write, and track the replication lag per follower.";
+
+  it("probes a required area, grades the answer, and records it", async () => {
+    const { service } = setup();
+    const s = ready(service);
+    expect(service.get(s.id).knowledge.map((k) => k.level)).toEqual(["untested", "untested", "untested", "untested"]);
+
+    const r1 = await service.submitRound(s.id, { design: urlDesign, answers: [], requestId: rid() });
+    const probe = r1.threads.find((t) => t.concept !== "");
+    expect(probe).toBeDefined();
+
+    const answer = probe!.concept === "ddia-replication" ? goodReplication : "it scales";
+    const r2 = await service.submitRound(s.id, {
+      design: urlDesign, answers: [{ threadId: probe!.id, text: answer }], requestId: rid(),
+    });
+    const graded = r2.knowledge.find((k) => k.concept === probe!.concept);
+    expect(graded?.level).not.toBe("untested");
+    expect(graded?.evidence).toBe(answer.slice(0, 200));
+  });
+
+  it("keeps asking deep-dive questions after the design stops changing", async () => {
+    const { service, tasks } = setup();
+    const s = ready(service);
+    const r1 = await service.submitRound(s.id, { design: urlDesign, answers: [], requestId: rid() });
+    const probe = r1.threads.find((t) => t.concept !== "")!;
+    const r2 = await service.submitRound(s.id, {
+      design: clone(urlDesign), answers: [{ threadId: probe.id, text: "dunno" }], requestId: rid(),
+    });
+    expect(tasks.at(-1)).toBe("grade_answers");
+    const newProbes = r2.threads.filter((t) => t.round === 2 && t.concept !== "");
+    expect(newProbes.length).toBeGreaterThan(0);
+  });
+
+  it("fails the interview when knowledge areas were never shown", async () => {
+    const { service } = setup();
+    const s = ready(service);
+    await service.submitRound(s.id, { design: urlDesign, answers: [], requestId: rid() });
+    const done = await service.finish(s.id, urlDesign, rid());
+    expect(done.outcome?.passed).toBe(false);
+    expect(done.outcome?.reasons.some((r) => r.includes("needs solid"))).toBe(true);
+  });
+});

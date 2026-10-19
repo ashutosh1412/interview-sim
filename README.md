@@ -2,6 +2,8 @@
 
 Practice the system design and low-level design problems most commonly asked in tier-1 interview loops: 30 curated problems across five tracks (Web & backend, AI engineering, AI workflows & agents, Cloud architecture, Low-level design), each with a hidden rubric the interviewer grades against (`src/server/interview/problems.ts`). LLD problems use class, interface and enum shapes and an object-oriented interviewer.
 
+**The pass bar is knowledge, not just a nice diagram.** Every problem requires 3–5 knowledge areas (`src/shared/concepts.ts`) at the depth of *Designing Data-Intensive Applications* and *AI Engineering* (plus OOD fundamentals for LLD). The interviewer asks deep-dive questions on each, about mechanisms, failure scenarios and trade-offs in your design, and grades your answers none / surface / solid / deep. You pass only if every required area reaches **solid**, every score is at least 3/5, the verdict is hire, and the design was reviewable; the server enforces this, not the model. `npm run smoke:knowledge` checks the bar against a real model (buzzwords must grade "surface" or lower; a real explanation must grade "solid").
+
 Practice system design interviews on a drag-and-drop canvas, in three steps like a real interview:
 
 1. **Requirements**: ask the interviewer clarifying questions, then lock in a short, prioritised feature list and quantified non-functional requirements. Estimates are optional, as in real interviews: give only the numbers that change your design.

@@ -1,7 +1,8 @@
 // Prompt text lives here and only here. The system prompt depends only on the problem,
 // so it is byte-identical for every call in a session (cache-friendly); everything that
 // changes per call goes in the user prompt.
-import type { Clarification, Contract, Design, Requirements, Thread } from "../../shared/schemas.ts";
+import { CONCEPTS, type ConceptId } from "../../shared/concepts.ts";
+import type { Clarification, Contract, Design, Requirements, Session, Thread } from "../../shared/schemas.ts";
 import { compactDesign, compactDiff, type DesignDiff } from "./compact.ts";
 import type { Problem } from "./problems.ts";
 
@@ -85,6 +86,21 @@ API:
 ${c.api}`;
 }
 
+function knowledgeBlock(knowledge: Session["knowledge"]): string {
+  return knowledge
+    .map((k) => {
+      const c = CONCEPTS[k.concept as ConceptId];
+      const evidence = k.evidence ? ` Evidence so far: ${k.evidence}` : "";
+      return `- [${k.concept}] ${c.title} (now: ${k.level}). Solid means: ${c.bar}${evidence}`;
+    })
+    .join("\n");
+}
+
+const KNOWLEDGE_RULES = `Knowledge check (hidden from the candidate). The candidate passes only if every area below reaches "solid", at the depth of "Designing Data-Intensive Applications" / "AI Engineering". Test it thoroughly:
+- Once the design is reviewable, include at least one question per round that tests an area still "untested", "none" or "surface". Ask about the mechanism, a concrete failure scenario or a trade-off in THIS design; never ask for a definition. Set that annotation's "concept" to the area id; use "" for other annotations.
+- Return conceptUpdates only for areas with new evidence from answers, notes or the design. Levels: none = wrong or no understanding; surface = names the idea or uses the buzzword but cannot explain how it works or what it costs; solid = explains the mechanism and trade-offs correctly for this design; deep = solid plus failure modes, edge cases or numbers. Naming a technique is never more than "surface". A correct design choice with no explanation is at most "surface".
+- Evidence: paraphrase what the candidate said in under 30 words.`;
+
 function clarificationsBlock(c: Clarification[]): string {
   return c.length ? c.map((x) => `Q: ${x.question}\nA: ${x.answer}`).join("\n") : "(none)";
 }
@@ -95,6 +111,7 @@ interface PromptInput {
   threads: Thread[];
   requirements: Requirements | null;
   contract: Contract | null;
+  knowledge: Session["knowledge"];
   round: number;
   elapsedMin: number;
   durationMin: number;
@@ -129,7 +146,11 @@ ${compactDiff(i.diff)}
 Open threads (grade every thread with status "answered"; a design change can also resolve a thread):
 ${relevantThreads(i.threads)}
 
-Task: return threadUpdates for answered threads (verdict resolved | partial | followup; put a follow-up question in "followup" unless resolved), and at most ${maxNew} new annotations on the most important remaining gaps.`;
+${KNOWLEDGE_RULES}
+Knowledge areas:
+${knowledgeBlock(i.knowledge)}
+
+Task: return threadUpdates for answered threads (verdict resolved | partial | followup; put a follow-up question in "followup" unless resolved), at most ${maxNew} new annotations on the most important remaining gaps (including at least one knowledge probe once the design is reviewable), and conceptUpdates.`;
 }
 
 export function gradePrompt(i: PromptInput): string {
@@ -147,7 +168,11 @@ ${compactDesign(i.design)}
 Threads:
 ${relevantThreads(i.threads)}
 
-Task: return threadUpdates for every thread with status "answered" (verdict resolved | partial | followup; put a follow-up question in "followup" unless resolved). Return an empty annotations list.`;
+${KNOWLEDGE_RULES}
+Knowledge areas:
+${knowledgeBlock(i.knowledge)}
+
+Task: return threadUpdates for every thread with status "answered" (verdict resolved | partial | followup; put a follow-up question in "followup" unless resolved), and conceptUpdates for any knowledge the answers show. The design is done, so this is the deep-dive phase: add at most 2 new annotations, each a knowledge probe (with its "concept" set) for an area that is still "untested", "none" or "surface" and has no open question already. If every area is "solid" or better, return an empty annotations list.`;
 }
 
 export function assessmentPrompt(
@@ -174,5 +199,8 @@ ${all}
 
 Times the candidate submitted a design that could not serve a request end to end: ${extra.strikes}
 
-Task: write the final assessment. Score each dimension 1-5 (3 = meets the bar for a mid-level engineer). Requirements covers clarifying questions, a short prioritised feature list, quantified non-functional requirements, and the core entities and API (estimates only matter where they changed a decision). Be strict: an incomplete design or vague answers cannot score above 2. Give an overall verdict, a short honest summary, and list the most important things the candidate missed compared to a strong answer.`;
+Knowledge check results (the candidate fails unless every area is "solid" or "deep"; this is enforced separately):
+${knowledgeBlock(i.knowledge)}
+
+Task: write the final assessment. Score each dimension 1-5 (3 = meets the bar for a mid-level engineer). Requirements covers clarifying questions, a short prioritised feature list, quantified non-functional requirements, and the core entities and API (estimates only matter where they changed a decision). Be strict: an incomplete design or vague answers cannot score above 2, and scores must be consistent with the knowledge check (a "surface" or "untested" area caps the related dimension at 2). Give an overall verdict, a short honest summary, and list the most important things the candidate missed compared to a strong answer.`;
 }

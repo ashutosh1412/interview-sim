@@ -4,10 +4,12 @@ import type { AppConfig } from "../config.ts";
 import { AppError } from "../errors.ts";
 import { findProblem } from "../interview/problems.ts";
 import { isComponent } from "../../shared/components.ts";
+import { CONCEPTS, type ConceptId } from "../../shared/concepts.ts";
 import type {
   Assessment,
   ClarifyResult,
   ComponentType,
+  ConceptUpdate,
   LlmAnnotation,
   LlmThreadUpdate,
   ReviewResult,
@@ -44,14 +46,35 @@ const QUESTION_BANK: Partial<Record<ComponentType, string>> = {
 };
 
 const SHORT_ANSWER_CHARS = 80;
+const SOLID_CHARS = 120;
+const DEEP_CHARS = 220;
+
+/** Rough stand-in for a real grader: length plus the concept's key terms. */
+export function mockGrade(answer: string, concept: ConceptId): ConceptUpdate["level"] {
+  const text = answer.toLowerCase();
+  const hits = CONCEPTS[concept].keywords.filter((k) => text.includes(k)).length;
+  if (hits >= 2 && text.length >= DEEP_CHARS) return "deep";
+  if (hits >= 1 && text.length >= SOLID_CHARS) return "solid";
+  if (text.length >= 30) return "surface";
+  return "none";
+}
+
+const isConcept = (id: string): id is ConceptId => id in CONCEPTS;
 
 function reviewRound(req: LlmRequest): ReviewResult {
   const { design, threads, problemId } = req.context;
+  const conceptUpdates: ConceptUpdate[] = [];
 
   const threadUpdates: LlmThreadUpdate[] = threads
     .filter((t) => t.status === "answered")
     .map((t) => {
       const latest = t.answers.at(-1) ?? "";
+      if (isConcept(t.concept)) {
+        const level = mockGrade(latest, t.concept);
+        conceptUpdates.push({ concept: t.concept, level, evidence: latest.slice(0, 200) });
+        if (level === "solid" || level === "deep") return { threadId: t.id, verdict: "resolved", followup: "" };
+        return { threadId: t.id, verdict: "followup", followup: "Explain the mechanism: what exactly happens, and what does it cost?" };
+      }
       return latest.length >= SHORT_ANSWER_CHARS
         ? { threadId: t.id, verdict: "resolved", followup: "" }
         : {
@@ -61,11 +84,25 @@ function reviewRound(req: LlmRequest): ReviewResult {
           };
     });
 
-  if (req.task === "grade_answers") return { annotations: [], threadUpdates };
+  // A real interviewer probes knowledge every round, including after the design is done:
+  // one untested or weak area at a time.
+  const annotations: LlmAnnotation[] = [];
+  const asked = new Set(threads.filter((t) => t.status !== "resolved").map((t) => t.concept));
+  const graded = new Map(conceptUpdates.map((u) => [u.concept, u.level]));
+  const weak = (req.context.knowledge ?? []).find((k) => {
+    const level = graded.get(k.concept) ?? k.level;
+    return isConcept(k.concept) && !asked.has(k.concept) && ["untested", "none", "surface"].includes(level);
+  });
+  if (weak && isConcept(weak.concept)) {
+    annotations.push({
+      target: { kind: "global", id: "" }, type: "question", severity: "high", text: CONCEPTS[weak.concept].probe, concept: weak.concept,
+    });
+  }
+
+  if (req.task === "grade_answers") return { annotations, threadUpdates, conceptUpdates };
 
   const askedTargets = new Set(threads.map((t) => `${t.target.kind}:${t.target.id}`));
   const askedTexts = new Set(threads.map((t) => t.text));
-  const annotations: LlmAnnotation[] = [];
 
   for (const node of design.nodes) {
     if (!isComponent(node.type)) continue;
@@ -76,6 +113,7 @@ function reviewRound(req: LlmRequest): ReviewResult {
       type: "question",
       severity: node.type.endsWith("_db") ? "high" : "medium",
       text: question,
+      concept: "",
     });
     if (annotations.length >= 3) break;
   }
@@ -89,15 +127,16 @@ function reviewRound(req: LlmRequest): ReviewResult {
       type: "question",
       severity: "medium",
       text: "This call is async. How does the caller learn about failures, and what is the retry policy?",
+      concept: "",
     });
   }
 
   const global = findProblem(problemId)?.mockQuestions.find((q) => !askedTexts.has(q));
   if (global) {
-    annotations.push({ target: { kind: "global", id: "" }, type: "question", severity: "high", text: global });
+    annotations.push({ target: { kind: "global", id: "" }, type: "question", severity: "high", text: global, concept: "" });
   }
 
-  return { annotations, threadUpdates };
+  return { annotations, threadUpdates, conceptUpdates };
 }
 
 function clarify(req: LlmRequest): ClarifyResult {

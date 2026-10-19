@@ -1,5 +1,5 @@
 import type { Effort, Task } from "../config.ts";
-import type { Design, Thread } from "../../shared/schemas.ts";
+import type { Design, Session, Thread } from "../../shared/schemas.ts";
 
 export interface LlmUsage {
   inputTokens: number;
@@ -21,7 +21,7 @@ export interface LlmRequest {
    * The structured data the prompt was rendered from. Real providers ignore it;
    * the mock provider uses it to answer about the user's actual nodes and threads.
    */
-  context: { problemId: string; design: Design; threads: Thread[]; question?: string };
+  context: { problemId: string; design: Design; threads: Thread[]; question?: string; knowledge?: Session["knowledge"] };
   signal: AbortSignal;
 }
 

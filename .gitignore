@@ -15,3 +15,6 @@ data/usage.json
 # OS and tooling noise
 .DS_Store
 *.log
+
+# local tooling
+.claude/

@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
-import type { Thread } from "../../shared/schemas.ts";
+import { levelRank, PASSING_LEVEL } from "../../shared/concepts.ts";
+import type { Session, Thread } from "../../shared/schemas.ts";
 import { STATUS_LABEL } from "../catalog.ts";
 
 interface Props {
   threads: Thread[];
+  knowledge: Session["knowledge"];
   nameOf: (nodeId: string) => string;
   drafts: Record<string, string>;
   selectedThreadId: string | null;
@@ -14,7 +16,18 @@ interface Props {
 
 const KIND: Record<Thread["type"], string> = { question: "Question", issue: "Fix this", missing: "Missing", praise: "Nice" };
 
-export function ThreadPanel({ threads, nameOf, drafts, selectedThreadId, readOnly, onDraft, onSelect }: Props) {
+/** "1 of 4": how many required knowledge areas reached the bar, without naming them. */
+function KnowledgeCount({ knowledge }: { knowledge: Session["knowledge"] }) {
+  if (!knowledge.length) return null;
+  const passed = knowledge.filter((k) => levelRank(k.level) >= levelRank(PASSING_LEVEL)).length;
+  return (
+    <p className="knowledge-count" title="Deep-dive questions test the knowledge this problem needs. You pass only if every area is solid.">
+      Knowledge checks passed: <strong>{passed} of {knowledge.length}</strong>
+    </p>
+  );
+}
+
+export function ThreadPanel({ threads, knowledge, nameOf, drafts, selectedThreadId, readOnly, onDraft, onSelect }: Props) {
   const about = (t: Thread) =>
     t.target.kind === "node" ? nameOf(t.target.id) : t.target.kind === "edge" ? "a connection" : "overall";
   const refs = useRef(new Map<string, HTMLElement>());
@@ -31,6 +44,7 @@ export function ThreadPanel({ threads, nameOf, drafts, selectedThreadId, readOnl
     return (
       <section className="threads">
         <h2 className="panel-title">Interviewer</h2>
+        <KnowledgeCount knowledge={knowledge} />
         <p className="hint">Draw your design, then press <strong>Submit for review</strong>. Questions appear as numbered circles.</p>
       </section>
     );
@@ -41,6 +55,7 @@ export function ThreadPanel({ threads, nameOf, drafts, selectedThreadId, readOnl
       <h2 className="panel-title">
         Interviewer <span className="muted">{active.length} open · {resolved.length} resolved</span>
       </h2>
+      <KnowledgeCount knowledge={knowledge} />
       <ol className="threads__list">
         {active.map(({ thread, num }) => (
           <li

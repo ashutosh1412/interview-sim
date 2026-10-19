@@ -42,7 +42,7 @@ describe("llm client", () => {
   it("returns validated data and usage on the first try", async () => {
     const p = scripted([valid]);
     const res = await client(p).call(callArgs);
-    expect(res.data).toEqual({ annotations: [], threadUpdates: [] });
+    expect(res.data).toEqual({ annotations: [], threadUpdates: [], conceptUpdates: [] });
     expect(res.usage).toEqual({ inputTokens: 10, outputTokens: 5, calls: 1 });
     expect(p.requests[0]?.model).toBe("claude-sonnet-5-5");
   });

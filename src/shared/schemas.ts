@@ -1,6 +1,7 @@
 // Single source of truth for every shape that crosses a boundary:
 // browser <-> server, and server <-> LLM. Types are inferred from these schemas.
 import { z } from "zod";
+import { CONCEPT_LEVELS } from "./concepts.ts";
 
 import { COMPONENT_TYPES, type ComponentType } from "./components.ts";
 
@@ -54,6 +55,8 @@ export const LlmAnnotationSchema = z.object({
   type: AnnotationTypeSchema,
   severity: SeveritySchema,
   text: z.string().min(1).max(400),
+  // Defaults keep a reply that omits these usable instead of failing the round.
+  concept: z.string().max(64).default("").describe("Id of the knowledge area this question tests; empty string if none"),
 });
 export type LlmAnnotation = z.infer<typeof LlmAnnotationSchema>;
 
@@ -66,10 +69,21 @@ export const LlmThreadUpdateSchema = z.object({
 });
 export type LlmThreadUpdate = z.infer<typeof LlmThreadUpdateSchema>;
 
+// "untested" is never produced by the model; it is the starting state.
+export const GradedLevelSchema = z.enum(["none", "surface", "solid", "deep"]);
+
+export const ConceptUpdateSchema = z.object({
+  concept: z.string().max(64),
+  level: GradedLevelSchema,
+  evidence: z.string().max(300).describe("What the candidate said or drew that justifies the level"),
+});
+export type ConceptUpdate = z.infer<typeof ConceptUpdateSchema>;
+
 // Output contract for review_round and grade_answers.
 export const ReviewResultSchema = z.object({
   annotations: z.array(LlmAnnotationSchema).max(8),
   threadUpdates: z.array(LlmThreadUpdateSchema).max(20),
+  conceptUpdates: z.array(ConceptUpdateSchema).max(10).default([]),
 });
 export type ReviewResult = z.infer<typeof ReviewResultSchema>;
 
@@ -131,6 +145,8 @@ export const ThreadSchema = z.object({
   type: AnnotationTypeSchema,
   severity: SeveritySchema,
   text: z.string(),
+  /** Knowledge area this question tests; "" for design questions. */
+  concept: z.string().default(""),
   status: ThreadStatusSchema,
   answers: z.array(z.string()),
   followups: z.array(z.string()),
@@ -157,6 +173,12 @@ export const SessionSchema = z.object({
   contract: ContractSchema.nullable().default(null),
   /** Submits rejected as not reviewable (no end-to-end design). Real interviewers notice. */
   strikes: z.number().int().default(0),
+  /** One entry per required knowledge area, graded through the interview. */
+  knowledge: z
+    .array(z.object({ concept: z.string(), level: z.enum(CONCEPT_LEVELS), evidence: z.string() }))
+    .default([]),
+  /** Decided by the server's pass bar, not by the model. */
+  outcome: z.object({ passed: z.boolean(), reasons: z.array(z.string()) }).nullable().default(null),
   rounds: z.array(
     z.object({ at: z.string(), design: DesignSchema, task: z.string(), note: z.string() }),
   ),

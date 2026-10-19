@@ -1,3 +1,4 @@
+import type { ConceptId } from "../../shared/concepts.ts";
 import type { ComponentType, PublicProblem } from "../../shared/schemas.ts";
 
 export interface Problem extends PublicProblem {
@@ -5,6 +6,8 @@ export interface Problem extends PublicProblem {
   rubric: {
     scale: string;
     mustHave: ComponentType[];
+    /** Knowledge the candidate must demonstrate at "solid" or better to pass. */
+    concepts: ConceptId[];
     keyTopics: string[];
     pitfalls: string[];
   };
@@ -28,6 +31,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "100M new URLs/month, 100:1 read:write, redirects p99 < 50ms, links kept 5 years",
       mustHave: ["load_balancer", "service", "cache", "nosql_db"],
+      concepts: ["ddia-reliability", "ddia-partitioning", "ddia-replication", "ddia-derived-data"],
       keyTopics: [
         "unique short-code generation without collisions (counter ranges, base62, hashing trade-offs)",
         "read-heavy caching of redirects and cache invalidation",
@@ -53,6 +57,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "1M requests/sec across 50 gateway nodes, decision overhead < 2ms",
       mustHave: ["api_gateway", "cache", "service"],
+      concepts: ["ddia-transactions", "ddia-distributed-faults", "ddia-replication", "ddia-reliability"],
       keyTopics: [
         "algorithm choice: token bucket vs sliding window log vs sliding window counter",
         "shared counters in a fast store and atomic increments (Lua/INCR with TTL)",
@@ -78,6 +83,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "500M DAU, 40B messages/day, groups up to 500 members",
       mustHave: ["load_balancer", "service", "queue", "nosql_db", "cache"],
+      concepts: ["ddia-streams", "ddia-partitioning", "ddia-replication", "ddia-consensus"],
       keyTopics: [
         "persistent connections (WebSocket) and routing a message to the recipient's connection server",
         "message ordering per conversation and delivery guarantees (at-least-once + dedupe)",
@@ -102,6 +108,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "300M DAU, average 200 follows, some celebrities with 50M followers, feed load p99 < 200ms",
       mustHave: ["load_balancer", "service", "cache", "queue", "nosql_db", "object_storage"],
+      concepts: ["ddia-derived-data", "ddia-partitioning", "ddia-reliability", "ddia-data-models"],
       keyTopics: [
         "fan-out on write vs fan-out on read, and the hybrid for celebrities",
         "precomputed feed cache structure and cursor pagination",
@@ -126,6 +133,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "1B notifications/day, bursts of 10x during campaigns, critical alerts delivered in < 5s",
       mustHave: ["api_gateway", "service", "queue", "worker", "nosql_db", "external"],
+      concepts: ["ddia-streams", "ddia-distributed-faults", "ddia-derived-data", "ddia-encoding"],
       keyTopics: [
         "queue per channel and priority so marketing bursts don't delay critical alerts",
         "idempotency and dedupe on retries",
@@ -151,6 +159,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "10M users browsing a hot event, 100k seats, peak 50k booking attempts/sec",
       mustHave: ["load_balancer", "service", "sql_db", "cache", "queue"],
+      concepts: ["ddia-transactions", "ddia-consensus", "ddia-distributed-faults", "ddia-replication"],
       keyTopics: [
         "seat reservation with a temporary hold and TTL (distributed lock or DB row state)",
         "strong consistency for bookings vs cached reads for browsing",
@@ -175,6 +184,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "100M users, files up to 50GB, 1PB+ total storage",
       mustHave: ["load_balancer", "service", "object_storage", "sql_db", "queue"],
+      concepts: ["ddia-conflicts", "ddia-storage", "ddia-partitioning", "ddia-derived-data"],
       keyTopics: [
         "chunked, resumable uploads directly to object storage with pre-signed URLs",
         "metadata service vs blob storage separation",
@@ -199,6 +209,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "500 hours uploaded/minute, 1B views/day, global audience",
       mustHave: ["cdn", "service", "object_storage", "queue", "worker", "nosql_db"],
+      concepts: ["ddia-batch", "ddia-reliability", "ddia-partitioning", "ddia-derived-data"],
       keyTopics: [
         "upload pipeline: chunked upload, transcoding into multiple resolutions as async jobs",
         "adaptive bitrate streaming (HLS/DASH segments)",
@@ -222,6 +233,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "5M active drivers sending location every 4 seconds, 1M ride requests/hour at peak",
       mustHave: ["load_balancer", "service", "cache", "nosql_db", "queue"],
+      concepts: ["ddia-partitioning", "ddia-storage", "ddia-transactions", "ddia-streams"],
       keyTopics: [
         "high write rate of driver locations and a geospatial index (geohash, quadtree, H3)",
         "matching: finding nearby available drivers and avoiding double assignment",
@@ -245,6 +257,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "10B queries/day, suggestions in < 100ms, top 10 per prefix",
       mustHave: ["load_balancer", "service", "cache", "stream", "stream_processor"],
+      concepts: ["ddia-batch", "ddia-streams", "ddia-partitioning", "ddia-storage"],
       keyTopics: [
         "trie or precomputed top-K per prefix",
         "offline aggregation of query logs and periodic rebuilds vs near-real-time trends",
@@ -268,6 +281,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "10B pages, refresh popular pages daily, ~5k pages/sec",
       mustHave: ["queue", "worker", "object_storage", "nosql_db", "cache"],
+      concepts: ["ddia-batch", "ddia-distributed-faults", "ddia-partitioning"],
       keyTopics: [
         "URL frontier with priority and per-domain politeness",
         "deduplication of URLs and page content",
@@ -292,6 +306,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "10k clicks/sec average, 100k peak, queries over the last minute up to 90 days",
       mustHave: ["stream", "stream_processor", "nosql_db", "data_warehouse", "service"],
+      concepts: ["ddia-streams", "ddia-batch", "ddia-partitioning", "ddia-derived-data"],
       keyTopics: [
         "stream processing with windowed aggregation and late events",
         "exactly-once or idempotent counting, dedupe of fraudulent double clicks",
@@ -316,6 +331,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "1M transactions/day, money must never be lost or double-charged",
       mustHave: ["api_gateway", "service", "sql_db", "queue", "external"],
+      concepts: ["ddia-transactions", "ddia-distributed-faults", "ddia-derived-data", "ddia-consensus"],
       keyTopics: [
         "idempotency keys for every charge request",
         "ledger with double-entry bookkeeping",
@@ -342,6 +358,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "50k employees, 10M documents, answers in < 5s, docs change daily",
       mustHave: ["service", "vector_db", "llm", "object_storage", "queue", "worker"],
+      concepts: ["aie-rag", "aie-evaluation", "aie-prompting", "aie-foundation-models", "ddia-derived-data"],
       keyTopics: [
         "ingestion: chunking strategy, embeddings, incremental re-indexing",
         "retrieval: hybrid search (vector + keyword), re-ranking",
@@ -367,6 +384,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "20k requests/sec peak, mixed short and long prompts, GPU capacity is the main cost",
       mustHave: ["api_gateway", "load_balancer", "llm", "queue", "cache", "monitoring"],
+      concepts: ["aie-inference", "aie-architecture", "aie-foundation-models", "ddia-reliability"],
       keyTopics: [
         "batching (continuous batching) and GPU utilisation",
         "routing by model, prompt length and priority; per-team quotas",
@@ -391,6 +409,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "100M users, 10M items, recommendations served in < 100ms",
       mustHave: ["service", "ml_model", "cache", "stream", "data_warehouse", "nosql_db"],
+      concepts: ["ml-features-serving", "ml-metrics", "ddia-streams", "ddia-batch"],
       keyTopics: [
         "two-stage design: candidate generation (retrieval/ANN) then ranking",
         "feature store: online vs offline features and skew",
@@ -416,6 +435,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "50M products, 5k queries/sec, results in < 200ms, catalog updates every minute",
       mustHave: ["service", "vector_db", "search", "ml_model", "stream", "cache"],
+      concepts: ["aie-rag", "ml-metrics", "ddia-derived-data", "ddia-partitioning"],
       keyTopics: [
         "hybrid retrieval: BM25 + vector ANN, score fusion",
         "embedding model choice and re-embedding on catalog changes",
@@ -440,6 +460,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "50k transactions/sec, decision in < 100ms, fraud rate ~0.1%",
       mustHave: ["service", "ml_model", "stream", "stream_processor", "cache", "data_warehouse"],
+      concepts: ["ml-features-serving", "ml-metrics", "ddia-streams", "ddia-reliability"],
       keyTopics: [
         "real-time features (velocity counts over windows) from a stream",
         "model serving within the latency budget, rules plus model",
@@ -465,6 +486,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "500M posts/day, most must be checked within seconds of posting",
       mustHave: ["service", "queue", "worker", "ml_model", "nosql_db"],
+      concepts: ["ml-metrics", "aie-evaluation", "aie-architecture", "ddia-streams"],
       keyTopics: [
         "sync vs async checks: block before publish vs take down after",
         "multiple classifiers and thresholds, precision vs recall per policy",
@@ -492,6 +514,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "1M conversations/day, first reply < 3s, refunds above a limit need approval",
       mustHave: ["service", "llm", "vector_db", "nosql_db", "queue", "external"],
+      concepts: ["aie-agents", "aie-prompting", "aie-evaluation", "aie-finetuning"],
       keyTopics: [
         "agent loop with tool calls and limits on steps",
         "permissions and guardrails for actions (refund limits, confirmation)",
@@ -517,6 +540,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "2M documents/day, results within 10 minutes, 99% field accuracy after review",
       mustHave: ["object_storage", "queue", "worker", "llm", "sql_db"],
+      concepts: ["aie-foundation-models", "aie-evaluation", "ddia-batch", "ddia-distributed-faults"],
       keyTopics: [
         "multi-step workflow (OCR, classify, extract, validate) with retries per step",
         "structured output with schemas and confidence scores",
@@ -542,6 +566,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "100k research jobs/day, each up to 30 minutes and hundreds of tool calls",
       mustHave: ["service", "queue", "worker", "llm", "nosql_db", "object_storage"],
+      concepts: ["aie-agents", "aie-foundation-models", "aie-architecture", "ddia-distributed-faults"],
       keyTopics: [
         "long-running jobs: durable workflow state, checkpoints, resume after crash",
         "planner/sub-agent fan-out and merging results",
@@ -567,6 +592,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "30 LLM features, 50M production calls/day, every prompt change must be evaluated",
       mustHave: ["service", "stream", "data_warehouse", "llm", "worker", "monitoring"],
+      concepts: ["aie-evaluation", "aie-dataset", "aie-architecture", "ddia-streams"],
       keyTopics: [
         "offline eval sets, graders (exact match, LLM-as-judge, human) and regression gates in CI",
         "logging prompts/responses with sampling and PII redaction",
@@ -593,6 +619,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "Global customers, RTO < 15 min, RPO < 1 min, 99.99% availability target",
       mustHave: ["dns", "load_balancer", "service", "sql_db", "region"],
+      concepts: ["ddia-replication", "ddia-conflicts", "ddia-consensus", "ddia-distributed-faults"],
       keyTopics: [
         "active-active vs active-passive and their costs",
         "database replication across regions, write conflicts, failover",
@@ -618,6 +645,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "100k hosts, 10M metrics/sec, dashboards over 1 year, alerts within 1 minute",
       mustHave: ["stream", "stream_processor", "nosql_db", "service", "notification"],
+      concepts: ["ddia-storage", "ddia-streams", "ddia-partitioning", "ddia-reliability"],
       keyTopics: [
         "push vs pull collection",
         "time-series storage, compression and downsampling/retention",
@@ -643,6 +671,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "10M jobs/day, schedules accurate to the second, jobs run from seconds to hours",
       mustHave: ["service", "scheduler", "queue", "worker", "sql_db"],
+      concepts: ["ddia-distributed-faults", "ddia-consensus", "ddia-transactions"],
       keyTopics: [
         "storing schedules and efficiently finding due jobs",
         "at-least-once execution, leases/heartbeats, idempotent jobs",
@@ -670,6 +699,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "Single process; focus on classes, responsibilities and extensibility",
       mustHave: ["class", "interface", "enum"],
+      concepts: ["ood-solid", "ood-patterns", "ood-concurrency"],
       keyTopics: [
         "clear entities: ParkingLot, Floor, Spot, Vehicle, Ticket, Payment",
         "spot allocation strategy behind an interface (Strategy pattern)",
@@ -694,6 +724,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "Single process; focus on state, scheduling and extensibility",
       mustHave: ["class", "interface", "enum"],
+      concepts: ["ood-state", "ood-patterns", "ood-concurrency"],
       keyTopics: [
         "Elevator state machine (idle, moving up/down, doors open, maintenance)",
         "dispatcher choosing an elevator, with the algorithm behind an interface",
@@ -717,6 +748,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "Single process; focus on modelling and correctness",
       mustHave: ["class", "interface", "enum"],
+      concepts: ["ood-solid", "ood-patterns", "ood-state"],
       keyTopics: [
         "User, Group, Expense, Split types (Strategy or subclassing)",
         "balance sheet and simplifying debts",
@@ -740,6 +772,7 @@ export const PROBLEMS: readonly Problem[] = [
     rubric: {
       scale: "Single process; O(1) get/put, safe under concurrent access",
       mustHave: ["class", "interface"],
+      concepts: ["ood-dsa", "ood-concurrency", "ood-patterns"],
       keyTopics: [
         "hash map + doubly linked list for O(1) operations",
         "eviction policy behind an interface (LRU, LFU)",

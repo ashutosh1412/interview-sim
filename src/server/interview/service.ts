@@ -18,6 +18,7 @@ import type { LlmClient } from "../llm/client.ts";
 import { diffDesigns, isEmptyDiff } from "./compact.ts";
 import { findProblem, type Problem } from "./problems.ts";
 import { assessmentPrompt, clarifyPrompt, gradePrompt, reviewPrompt, systemPrompt } from "./prompts.ts";
+import { decideOutcome } from "./passBar.ts";
 import { runRules } from "./rules.ts";
 import type { SessionStore } from "./sessionStore.ts";
 
@@ -75,7 +76,7 @@ function syncRuleThreads(session: Session, problem: Problem, design: Design, rou
     }
     threads.push({
       id, source: "rules", round, target: f.target, type: f.type, severity: f.severity,
-      text: f.text, status: "open", answers: [], followups: [],
+      text: f.text, concept: "", status: "open", answers: [], followups: [],
     });
   }
   return findings.filter((f) => f.blocking).length;
@@ -87,7 +88,24 @@ function sanitizeTarget(a: LlmAnnotation, design: Design): LlmAnnotation["target
   return ids.some((x) => x.id === a.target.id) ? a.target : { kind: "global", id: "" };
 }
 
-function applyReview(session: Session, result: ReviewResult, design: Design, round: number): void {
+/** Every required knowledge area has a ledger entry; missing ones start as "untested". */
+function ensureKnowledge(session: Session, problem: Problem): void {
+  for (const concept of problem.rubric.concepts) {
+    if (!session.knowledge.some((k) => k.concept === concept)) {
+      session.knowledge.push({ concept, level: "untested", evidence: "" });
+    }
+  }
+}
+
+function applyReview(session: Session, problem: Problem, result: ReviewResult, design: Design, round: number): void {
+  const required = new Set<string>(problem.rubric.concepts);
+  for (const u of result.conceptUpdates) {
+    const entry = session.knowledge.find((k) => k.concept === u.concept);
+    if (!entry || !required.has(u.concept)) continue; // ignore areas this problem doesn't grade
+    entry.level = u.level;
+    entry.evidence = u.evidence.trim();
+  }
+
   const byId = new Map(session.threads.map((t) => [t.id, t]));
   for (const u of result.threadUpdates) {
     const thread = byId.get(u.threadId);
@@ -109,7 +127,8 @@ function applyReview(session: Session, result: ReviewResult, design: Design, rou
     seen.add(key);
     session.threads.push({
       id: `t${next++}`, source: "llm", round, target: sanitizeTarget(a, design), type: a.type,
-      severity: a.severity, text: a.text.trim(), status: "open", answers: [], followups: [],
+      severity: a.severity, text: a.text.trim(), concept: required.has(a.concept) ? a.concept : "",
+      status: "open", answers: [], followups: [],
     });
   }
 }
@@ -166,6 +185,7 @@ export function createInterviewService(deps: {
     if (!session) throw new AppError("not_found", "Session not found");
     const problem = findProblem(session.problemId);
     if (!problem) throw new AppError("not_found", "Problem not found");
+    ensureKnowledge(session, problem);
     return { session, problem };
   }
 
@@ -241,7 +261,7 @@ export function createInterviewService(deps: {
     if (task !== "none") {
       const input = {
         design: req.design, diff, threads: session.threads, requirements: session.requirements,
-        contract: session.contract, round,
+        contract: session.contract, knowledge: session.knowledge, round,
         elapsedMin: minutesSince(session.startedAt, now()), durationMin: session.durationMin,
       };
       const result = await llm.call({
@@ -249,10 +269,10 @@ export function createInterviewService(deps: {
         system: systemPrompt(problem),
         prompt: task === "review_round" ? reviewPrompt(input, MAX_NEW_ANNOTATIONS) : gradePrompt(input),
         schema: ReviewResultSchema,
-        context: { problemId: problem.id, design: req.design, threads: session.threads },
+        context: { problemId: problem.id, design: req.design, threads: session.threads, knowledge: session.knowledge },
         sessionTokensUsed: tokensUsed(session),
       });
-      applyReview(session, result.data, req.design, round);
+      applyReview(session, problem, result.data, req.design, round);
       addUsage(session, result.usage);
     }
 
@@ -270,7 +290,7 @@ export function createInterviewService(deps: {
       prompt: assessmentPrompt(
         {
           design, threads: session.threads, requirements: session.requirements, contract: session.contract,
-          round: session.rounds.length,
+          knowledge: session.knowledge, round: session.rounds.length,
           elapsedMin: minutesSince(session.startedAt, now()), durationMin: session.durationMin,
         },
         { roundsUsed: session.rounds.length, clarifications: session.clarifications, strikes: session.strikes },
@@ -281,6 +301,13 @@ export function createInterviewService(deps: {
     });
     addUsage(session, result.usage);
     session.assessment = result.data;
+    session.outcome = decideOutcome({
+      required: problem.rubric.concepts,
+      knowledge: session.knowledge,
+      assessment: result.data,
+      strikes: session.strikes,
+      reviewedRounds: session.rounds.filter((r) => r.task === "review_round").length,
+    });
     session.finishedAt = new Date(now()).toISOString();
     session.rounds.push({ at: session.finishedAt, design, task: "final_assessment", note: "Final assessment." });
     store.save(session);
@@ -293,9 +320,11 @@ export function createInterviewService(deps: {
       const session: Session = {
         id: randomUUID(), problemId, durationMin, startedAt: new Date(now()).toISOString(),
         finishedAt: null, phase: "requirements", clarifications: [], requirements: null, contract: null, strikes: 0,
+        knowledge: [], outcome: null,
         rounds: [], threads: [], assessment: null,
         usage: { calls: 0, inputTokens: 0, outputTokens: 0 },
       };
+      ensureKnowledge(session, findProblem(problemId) as Problem);
       store.save(session);
       return session;
     },

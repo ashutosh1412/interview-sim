@@ -559,6 +559,7 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
                     />
                     <ThreadPanel
                       threads={session.threads}
+                      knowledge={session.knowledge}
                       nameOf={nameOf}
                       drafts={answers}
                       selectedThreadId={selectedThreadId}
@@ -571,7 +572,12 @@ function Workspace({ initial, problem, onExit }: { initial: Session; problem: Pu
               </aside>
             </div>
             {showAssessment && session.assessment && (
-              <AssessmentView assessment={session.assessment} onClose={() => setShowAssessment(false)} />
+              <AssessmentView
+                assessment={session.assessment}
+                outcome={session.outcome}
+                knowledge={session.knowledge}
+                onClose={() => setShowAssessment(false)}
+              />
             )}
           </div>
         </EdgeEditContext.Provider>

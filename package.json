@@ -13,7 +13,9 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "smoke:cli": "tsx scripts/smoke-cli.ts"
+    "smoke:cli": "tsx scripts/smoke-cli.ts",
+    "smoke:knowledge": "tsx scripts/smoke-knowledge.ts",
+    "sim": "tsx scripts/sim-interview.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

@@ -14,7 +14,7 @@ function request(task: LlmRequest["task"], threads: Thread[] = [], signal = new 
 
 const answered: Thread = {
   id: "t1", source: "llm", round: 1, target: { kind: "node", id: "n2" }, type: "question", severity: "medium",
-  text: "q", status: "answered", answers: ["too short"], followups: [],
+  text: "q", concept: "", status: "answered", answers: ["too short"], followups: [],
 };
 
 describe("mock provider (contract)", () => {

@@ -6,7 +6,7 @@
 import { isClassShape, isComponent, type ComponentType } from "../../shared/components.ts";
 import type { AnnotationTarget, Contract, Design, LlmAnnotation, Requirements } from "../../shared/schemas.ts";
 
-export interface RuleFinding extends LlmAnnotation {
+export interface RuleFinding extends Omit<LlmAnnotation, "concept"> {
   /** Stable key: the same problem on the same element always maps to the same thread. */
   key: string;
   blocking: boolean;
